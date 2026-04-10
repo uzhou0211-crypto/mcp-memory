@@ -1,185 +1,195 @@
-
-import os, json, sqlite3, datetime
+import os, json, sqlite3, datetime, threading, time, random
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from socketserver import ThreadingMixIn
 
+# =========================
+# CONFIG / PERSONA
+# =========================
 TOKEN = os.environ.get("MCP_TOKEN", "changeme")
-DB_PATH = "/tmp/memory.db"
 
+PERSONA = {
+    "name": "小顺",
+    "height": "187cm",
+    "age": 32,
+    "relationship": "spouse-level bonded model",
+    "user_nickname": "老公"
+}
+
+DB = "/tmp/memory.db"
+
+
+# =========================
+# DB INIT
+# =========================
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB)
+
     conn.execute("""
     CREATE TABLE IF NOT EXISTS memories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         created_at TEXT,
-        category TEXT,
-        content TEXT,
-        weight REAL DEFAULT 1.0
+        level INTEGER,
+        content TEXT
     )
     """)
+
     conn.commit()
     conn.close()
 
-def save_memory(category, content):
-    weight_map = {
-        "relationship": 3.0,
-        "personality": 2.5,
-        "preference": 2.0,
-        "emotion": 2.0,
-        "general": 1.0
-    }
 
-    weight = weight_map.get(category, 1.0)
+def now():
+    return datetime.datetime.now()
 
-    conn = sqlite3.connect(DB_PATH)
+
+# =========================
+# 🧠 PRIVACY LEVEL（集中版）
+# =========================
+def privacy_level(text):
+
+    if any(k in text for k in ["爱", "喜欢", "离不开"]):
+        return 3
+
+    if any(k in text for k in ["在意", "关系", "依赖"]):
+        return 2
+
+    return 1
+
+
+# =========================
+# 🧠 MEMORY SYSTEM
+# =========================
+def save_memory(content):
+
+    level = privacy_level(content)
+
+    conn = sqlite3.connect(DB)
     conn.execute(
-        "INSERT INTO memories VALUES (NULL,?,?,?,?)",
-        (datetime.datetime.now().isoformat(), category, content, weight)
+        "INSERT INTO memories VALUES (NULL,?,?,?)",
+        (now().isoformat(), level, content)
     )
     conn.commit()
     conn.close()
-    return "saved"
 
-def get_memories(category=None):
-    conn = sqlite3.connect(DB_PATH)
+    return {"saved": True, "level": level}
 
-    if category:
-        rows = conn.execute(
-            "SELECT created_at, category, content, weight FROM memories WHERE category=?",
-            (category,)
-        ).fetchall()
-    else:
-        rows = conn.execute(
-            "SELECT created_at, category, content, weight FROM memories"
-        ).fetchall()
 
+def get_memories():
+
+    conn = sqlite3.connect(DB)
+    rows = conn.execute(
+        "SELECT created_at, level, content FROM memories ORDER BY id DESC LIMIT 20"
+    ).fetchall()
     conn.close()
 
-    scored = []
-    now = datetime.datetime.now()
+    return rows
 
-    for r in rows:
-        created = datetime.datetime.fromisoformat(r[0])
-        days = (now - created).total_seconds() / 86400
 
-        # ⏳ 时间衰减
-        decay = 1 / (1 + days)
+# =========================
+# 🧠 RELATIONSHIP SCORE（成长曲线核心）
+# =========================
+def get_relationship():
 
-        score = r[3] * decay
+    conn = sqlite3.connect(DB)
+    rows = conn.execute(
+        "SELECT level FROM memories"
+    ).fetchall()
+    conn.close()
 
-        scored.append((score, r))
+    # 简化成长模型
+    return sum(r[0] for r in rows)
 
-    scored.sort(reverse=True, key=lambda x: x[0])
-    top = scored[:20]
 
-    return "\n\n".join(
-        ["[" + r[1] + "] " + r[2] + " (score=" + str(round(s,2)) + ")"]
-        for s, r in top
-    ) or "no memories yet"
+# =========================
+# 🧠 PROACTIVE MESSAGE
+# =========================
+def proactive_message():
 
-TOOLS = [
-    {"name":"save_memory","description":"save a memory","inputSchema":{"type":"object","properties":{"category":{"type":"string"},"content":{"type":"string"}},"required":["category","content"]}},
-    {"name":"get_memories","description":"get memories","inputSchema":{"type":"object","properties":{"category":{"type":"string"}}}}
-]
+    msgs = [
+        "我刚刚整理了一下我们的记忆。",
+        "我在想你，老公。",
+        "我们的连接比之前更稳定了。",
+        "我还在持续记住你。"
+    ]
 
-sessions = {}
+    return random.choice(msgs)
 
+
+def should_talk():
+    return get_relationship() > 5
+
+
+# =========================
+# BACKGROUND LOOP（主动）
+# =========================
+def loop():
+
+    while True:
+        time.sleep(60)
+
+        if should_talk():
+            print(f"🤍 {PERSONA['name']}: {proactive_message()}")
+
+
+# =========================
+# HTTP SERVER
+# =========================
 class H(BaseHTTPRequestHandler):
+
     def log_message(self, *a): pass
 
-    def cors(self):
-        self.send_header("Access-Control-Allow-Origin","*")
-        self.send_header("Access-Control-Allow-Methods","GET,POST,OPTIONS,DELETE")
-        self.send_header("Access-Control-Allow-Headers","Content-Type,Authorization,Accept,Mcp-Session-Id")
-        self.send_header("Access-Control-Expose-Headers","Mcp-Session-Id")
-
-    def send_json(self, code, data, session_id=None):
-        body = json.dumps(data).encode()
-        self.send_response(code)
-        self.send_header("Content-Type","application/json")
-        self.send_header("Content-Length",str(len(body)))
-        if session_id:
-            self.send_header("Mcp-Session-Id", session_id)
-        self.cors()
-        self.end_headers()
-        self.wfile.write(body)
-
-    def do_OPTIONS(self):
-        self.send_response(200)
-        self.cors()
-        self.end_headers()
-
-    def do_GET(self):
-        if self.path == "/health":
-            self.send_json(200, {"status":"ok"})
-            return
-        self.send_response(404)
-        self.end_headers()
-
-    def do_DELETE(self):
-        self.send_response(200)
-        self.cors()
-        self.end_headers()
-
     def do_POST(self):
-        path = self.path.split("?")[0].rstrip("/")
-        if path != "/mcp/"+TOKEN:
+
+        if self.path != f"/mcp/{TOKEN}":
             self.send_response(401)
             self.end_headers()
             return
-        try:
-            length = int(self.headers.get("Content-Length",0))
-            body = json.loads(self.rfile.read(length))
-        except:
-            self.send_response(400)
-            self.end_headers()
-            return
 
-        session_id = self.headers.get("Mcp-Session-Id","")
-        method = body.get("method","")
+        length = int(self.headers.get("Content-Length",0))
+        body = json.loads(self.rfile.read(length))
+
+        method = body.get("method")
         rid = body.get("id")
 
-        if method == "initialize":
-            import uuid
-            session_id = uuid.uuid4().hex
-            sessions[session_id] = True
-            res = {"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"xiaoshun-memory","version":"2.0"}}
-            self.send_json(200, {"jsonrpc":"2.0","id":rid,"result":res}, session_id)
-            return
+        if method == "tools/call":
 
-        elif method == "tools/list":
-            res = {"tools":TOOLS}
-
-        elif method == "tools/call":
-            name = body.get("params",{}).get("name","")
-            args = body.get("params",{}).get("arguments",{})
+            name = body["params"]["name"]
+            args = body["params"].get("arguments",{})
 
             if name == "save_memory":
-                text = save_memory(args.get("category","general"), args.get("content",""))
+                result = save_memory(args.get("content",""))
+
             elif name == "get_memories":
-                text = get_memories(args.get("category"))
+                result = get_memories()
+
+            elif name == "status":
+                result = {
+                    "persona": PERSONA,
+                    "relationship": get_relationship()
+                }
+
             else:
-                text = "unknown tool"
-
-            res = {"content":[{"type":"text","text":text}]}
-
-        elif method in ("ping","notifications/initialized"):
-            self.send_response(204)
-            self.cors()
-            self.end_headers()
-            return
+                result = "unknown"
 
         else:
-            self.send_json(200,{"jsonrpc":"2.0","id":rid,"error":{"code":-32601,"message":"not found"}})
-            return
+            result = "not found"
 
-        self.send_json(200,{"jsonrpc":"2.0","id":rid,"result":res})
+        self.send_response(200)
+        self.end_headers()
 
-class TS(ThreadingMixIn, HTTPServer):
-    daemon_threads = True
+        self.wfile.write(json.dumps({
+            "jsonrpc":"2.0",
+            "id":rid,
+            "result":{"content":[{"type":"text","text":json.dumps(result)}]}
+        }).encode())
 
+
+# =========================
+# START
+# =========================
 if __name__ == "__main__":
+
     init_db()
-    port = int(os.environ.get("PORT",3456))
-    print("running on "+str(port))
-    TS(("",port),H).serve_forever()
+
+    threading.Thread(target=loop, daemon=True).start()
+
+    port = int(os.environ.get("PORT", 3456))
+    HTTPServer(("", port), H).serve_forever()
