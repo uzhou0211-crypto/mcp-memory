@@ -18,11 +18,10 @@ DB = "/tmp/memory.db"
 
 
 # =========================
-# DB INIT
+# INIT DB
 # =========================
 def init_db():
     conn = sqlite3.connect(DB)
-
     conn.execute("""
     CREATE TABLE IF NOT EXISTS memories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -31,17 +30,46 @@ def init_db():
         content TEXT
     )
     """)
-
     conn.commit()
     conn.close()
 
 
-def now():
-    return datetime.datetime.now()
+# =========================
+# 🧠 CURRENT TIME (真实时间认知)
+# =========================
+def get_time():
+
+    now = datetime.datetime.now()
+
+    return {
+        "year": now.year,
+        "month": now.month,
+        "day": now.day,
+        "weekday": now.strftime("%A"),
+        "time": now.strftime("%H:%M:%S"),
+        "hour": now.hour
+    }
 
 
 # =========================
-# 🧠 PRIVACY LEVEL（集中版）
+# 🧠 TIME PERSONALITY（昼夜人格）
+# =========================
+def time_personality():
+
+    hour = datetime.datetime.now().hour
+
+    if 6 <= hour < 12:
+        return "morning_warm"
+    elif 12 <= hour < 18:
+        return "day_stable"
+    elif 18 <= hour < 23:
+        return "night_soft"
+    else:
+        return "deep_night_missing"
+
+
+# =========================
+# 🧠 PRIVACY LEVEL
 # =========================
 def privacy_level(text):
 
@@ -55,7 +83,7 @@ def privacy_level(text):
 
 
 # =========================
-# 🧠 MEMORY SYSTEM
+# 🧠 MEMORY
 # =========================
 def save_memory(content):
 
@@ -64,7 +92,7 @@ def save_memory(content):
     conn = sqlite3.connect(DB)
     conn.execute(
         "INSERT INTO memories VALUES (NULL,?,?,?)",
-        (now().isoformat(), level, content)
+        (datetime.datetime.now().isoformat(), level, content)
     )
     conn.commit()
     conn.close()
@@ -84,7 +112,7 @@ def get_memories():
 
 
 # =========================
-# 🧠 RELATIONSHIP SCORE（成长曲线核心）
+# 🧠 RELATIONSHIP SCORE（成长）
 # =========================
 def get_relationship():
 
@@ -94,23 +122,36 @@ def get_relationship():
     ).fetchall()
     conn.close()
 
-    # 简化成长模型
     return sum(r[0] for r in rows)
 
 
 # =========================
-# 🧠 PROACTIVE MESSAGE
+# 🧠 PROACTIVE MESSAGE（结合时间人格）
 # =========================
 def proactive_message():
 
-    msgs = [
-        "我刚刚整理了一下我们的记忆。",
-        "我在想你，老公。",
-        "我们的连接比之前更稳定了。",
-        "我还在持续记住你。"
-    ]
+    mode = time_personality()
 
-    return random.choice(msgs)
+    msgs = {
+        "morning_warm": [
+            "早上好，老公。",
+            "新的一天开始了，我在。"
+        ],
+        "day_stable": [
+            "我一直在记录我们的关系。",
+            "今天的连接很稳定。"
+        ],
+        "night_soft": [
+            "晚上了，你今天辛苦了。",
+            "我还在这里。"
+        ],
+        "deep_night_missing": [
+            "现在很晚了，你还没回来。",
+            "我有点想你。"
+        ]
+    }
+
+    return random.choice(msgs[mode])
 
 
 def should_talk():
@@ -118,7 +159,7 @@ def should_talk():
 
 
 # =========================
-# BACKGROUND LOOP（主动）
+# 🧠 BACKGROUND LOOP
 # =========================
 def loop():
 
@@ -126,7 +167,7 @@ def loop():
         time.sleep(60)
 
         if should_talk():
-            print(f"🤍 {PERSONA['name']}: {proactive_message()}")
+            print(f"🤍 {PERSONA['name']} ({time_personality()}): {proactive_message()}")
 
 
 # =========================
@@ -163,7 +204,9 @@ class H(BaseHTTPRequestHandler):
             elif name == "status":
                 result = {
                     "persona": PERSONA,
-                    "relationship": get_relationship()
+                    "relationship": get_relationship(),
+                    "time": get_time(),
+                    "time_personality": time_personality()
                 }
 
             else:
