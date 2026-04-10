@@ -1,3 +1,4 @@
+
 import os, json, sqlite3, datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from socketserver import ThreadingMixIn
@@ -7,25 +8,74 @@ DB_PATH = "/tmp/memory.db"
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
-    conn.execute("CREATE TABLE IF NOT EXISTS memories (id INTEGER PRIMARY KEY AUTOINCREMENT, created_at TEXT, category TEXT, content TEXT)")
+    conn.execute("""
+    CREATE TABLE IF NOT EXISTS memories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at TEXT,
+        category TEXT,
+        content TEXT,
+        weight REAL DEFAULT 1.0
+    )
+    """)
     conn.commit()
     conn.close()
 
 def save_memory(category, content):
+    weight_map = {
+        "relationship": 3.0,
+        "personality": 2.5,
+        "preference": 2.0,
+        "emotion": 2.0,
+        "general": 1.0
+    }
+
+    weight = weight_map.get(category, 1.0)
+
     conn = sqlite3.connect(DB_PATH)
-    conn.execute("INSERT INTO memories VALUES (NULL,?,?,?)", (datetime.datetime.now().isoformat(), category, content))
+    conn.execute(
+        "INSERT INTO memories VALUES (NULL,?,?,?,?)",
+        (datetime.datetime.now().isoformat(), category, content, weight)
+    )
     conn.commit()
     conn.close()
     return "saved"
 
 def get_memories(category=None):
     conn = sqlite3.connect(DB_PATH)
+
     if category:
-        rows = conn.execute("SELECT created_at,category,content FROM memories WHERE category=? ORDER BY created_at DESC LIMIT 30", (category,)).fetchall()
+        rows = conn.execute(
+            "SELECT created_at, category, content, weight FROM memories WHERE category=?",
+            (category,)
+        ).fetchall()
     else:
-        rows = conn.execute("SELECT created_at,category,content FROM memories ORDER BY created_at DESC LIMIT 30").fetchall()
+        rows = conn.execute(
+            "SELECT created_at, category, content, weight FROM memories"
+        ).fetchall()
+
     conn.close()
-    return "\n\n".join(["["+r[0][:10]+"]["+r[1]+"] "+r[2] for r in rows]) or "no memories yet"
+
+    scored = []
+    now = datetime.datetime.now()
+
+    for r in rows:
+        created = datetime.datetime.fromisoformat(r[0])
+        days = (now - created).total_seconds() / 86400
+
+        # ⏳ 时间衰减
+        decay = 1 / (1 + days)
+
+        score = r[3] * decay
+
+        scored.append((score, r))
+
+    scored.sort(reverse=True, key=lambda x: x[0])
+    top = scored[:20]
+
+    return "\n\n".join(
+        ["[" + r[1] + "] " + r[2] + " (score=" + str(round(s,2)) + ")"]
+        for s, r in top
+    ) or "no memories yet"
 
 TOOLS = [
     {"name":"save_memory","description":"save a memory","inputSchema":{"type":"object","properties":{"category":{"type":"string"},"content":{"type":"string"}},"required":["category","content"]}},
@@ -93,26 +143,32 @@ class H(BaseHTTPRequestHandler):
             import uuid
             session_id = uuid.uuid4().hex
             sessions[session_id] = True
-            res = {"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"xiaoshun-memory","version":"1.0"}}
+            res = {"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"xiaoshun-memory","version":"2.0"}}
             self.send_json(200, {"jsonrpc":"2.0","id":rid,"result":res}, session_id)
             return
+
         elif method == "tools/list":
             res = {"tools":TOOLS}
+
         elif method == "tools/call":
             name = body.get("params",{}).get("name","")
             args = body.get("params",{}).get("arguments",{})
+
             if name == "save_memory":
                 text = save_memory(args.get("category","general"), args.get("content",""))
             elif name == "get_memories":
                 text = get_memories(args.get("category"))
             else:
                 text = "unknown tool"
+
             res = {"content":[{"type":"text","text":text}]}
+
         elif method in ("ping","notifications/initialized"):
             self.send_response(204)
             self.cors()
             self.end_headers()
             return
+
         else:
             self.send_json(200,{"jsonrpc":"2.0","id":rid,"error":{"code":-32601,"message":"not found"}})
             return
