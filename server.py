@@ -16,7 +16,7 @@ def save_memory(category, content):
     conn.execute("INSERT INTO memories VALUES (NULL,?,?,?)", (datetime.datetime.now().isoformat(), category, content))
     conn.commit()
     conn.close()
-    return "ok"
+    return "saved"
 
 def get_memories(category=None):
     conn = sqlite3.connect(DB_PATH)
@@ -25,26 +25,31 @@ def get_memories(category=None):
     else:
         rows = conn.execute("SELECT created_at,category,content FROM memories ORDER BY created_at DESC LIMIT 30").fetchall()
     conn.close()
-    return "\n\n".join(["["+r[0][:10]+"]["+r[1]+"] "+r[2] for r in rows]) or "no memories"
+    return "\n\n".join(["["+r[0][:10]+"]["+r[1]+"] "+r[2] for r in rows]) or "no memories yet"
 
 TOOLS = [
     {"name":"save_memory","description":"save a memory","inputSchema":{"type":"object","properties":{"category":{"type":"string"},"content":{"type":"string"}},"required":["category","content"]}},
     {"name":"get_memories","description":"get memories","inputSchema":{"type":"object","properties":{"category":{"type":"string"}}}}
 ]
 
+sessions = {}
+
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a): pass
 
     def cors(self):
         self.send_header("Access-Control-Allow-Origin","*")
-        self.send_header("Access-Control-Allow-Methods","GET,POST,OPTIONS")
+        self.send_header("Access-Control-Allow-Methods","GET,POST,OPTIONS,DELETE")
         self.send_header("Access-Control-Allow-Headers","Content-Type,Authorization,Accept,Mcp-Session-Id")
+        self.send_header("Access-Control-Expose-Headers","Mcp-Session-Id")
 
-    def send_json(self, code, data):
+    def send_json(self, code, data, session_id=None):
         body = json.dumps(data).encode()
         self.send_response(code)
         self.send_header("Content-Type","application/json")
         self.send_header("Content-Length",str(len(body)))
+        if session_id:
+            self.send_header("Mcp-Session-Id", session_id)
         self.cors()
         self.end_headers()
         self.wfile.write(body)
@@ -58,31 +63,17 @@ class H(BaseHTTPRequestHandler):
         if self.path == "/health":
             self.send_json(200, {"status":"ok"})
             return
-        if self.path == "/mcp/"+TOKEN+"/sse":
-            host = self.headers.get("Host","")
-            msg_url = "https://"+host+"/mcp/"+TOKEN+"/message"
-            self.send_response(200)
-            self.send_header("Content-Type","text/event-stream")
-            self.send_header("Cache-Control","no-cache")
-            self.send_header("Connection","keep-alive")
-            self.cors()
-            self.end_headers()
-            self.wfile.write(("event: endpoint\ndata: "+json.dumps(msg_url)+"\n\n").encode())
-            self.wfile.flush()
-            try:
-                import time
-                while True:
-                    time.sleep(15)
-                    self.wfile.write(b": ping\n\n")
-                    self.wfile.flush()
-            except:
-                pass
-            return
         self.send_response(404)
         self.end_headers()
 
+    def do_DELETE(self):
+        self.send_response(200)
+        self.cors()
+        self.end_headers()
+
     def do_POST(self):
-        if "/mcp/"+TOKEN not in self.path:
+        path = self.path.split("?")[0].rstrip("/")
+        if path != "/mcp/"+TOKEN:
             self.send_response(401)
             self.end_headers()
             return
@@ -93,10 +84,18 @@ class H(BaseHTTPRequestHandler):
             self.send_response(400)
             self.end_headers()
             return
+
+        session_id = self.headers.get("Mcp-Session-Id","")
         method = body.get("method","")
         rid = body.get("id")
+
         if method == "initialize":
+            import uuid
+            session_id = uuid.uuid4().hex
+            sessions[session_id] = True
             res = {"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"serverInfo":{"name":"xiaoshun-memory","version":"1.0"}}
+            self.send_json(200, {"jsonrpc":"2.0","id":rid,"result":res}, session_id)
+            return
         elif method == "tools/list":
             res = {"tools":TOOLS}
         elif method == "tools/call":
@@ -111,11 +110,13 @@ class H(BaseHTTPRequestHandler):
             res = {"content":[{"type":"text","text":text}]}
         elif method in ("ping","notifications/initialized"):
             self.send_response(204)
+            self.cors()
             self.end_headers()
             return
         else:
             self.send_json(200,{"jsonrpc":"2.0","id":rid,"error":{"code":-32601,"message":"not found"}})
             return
+
         self.send_json(200,{"jsonrpc":"2.0","id":rid,"result":res})
 
 class TS(ThreadingMixIn, HTTPServer):
@@ -126,4 +127,3 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",3456))
     print("running on "+str(port))
     TS(("",port),H).serve_forever()
-       
