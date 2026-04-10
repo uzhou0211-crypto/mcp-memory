@@ -4,9 +4,6 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 TOKEN = os.environ.get("MCP_TOKEN", "changeme")
 DB = "./data/memory.db"
 
-# =========================
-# 基础工具
-# =========================
 def now():
     return datetime.datetime.now()
 
@@ -22,12 +19,6 @@ def dec(t):
 def sha(t):
     return hashlib.sha256(str(t).encode()).hexdigest()
 
-def auth(path):
-    return path == f"/mcp/{TOKEN}"
-
-# =========================
-# 初始化数据库
-# =========================
 def init():
     os.makedirs("./data", exist_ok=True)
     with sqlite3.connect(DB) as c:
@@ -35,15 +26,13 @@ def init():
         CREATE TABLE IF NOT EXISTS memories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             created_at TEXT,
+            category TEXT,
             content TEXT,
             emotion INTEGER,
             hash TEXT
         )
         """)
 
-# =========================
-# 情绪评分
-# =========================
 def emotion_score(text):
     text = str(text)
     if any(k in text for k in ["爱","想你","喜欢","离不开"]):
@@ -54,167 +43,168 @@ def emotion_score(text):
         return 3
     return 1
 
-# =========================
-# 保存记忆
-# =========================
-def save(text):
-    text = str(text)
-    if not text:
-        return
-
-    h = sha(text)
-
+def save_memory(category, content):
+    content = str(content)
+    category = str(category) if category else "默认"
+    if not content:
+        return "内容不能为空"
+    h = sha(content)
     with sqlite3.connect(DB) as c:
         if c.execute("SELECT 1 FROM memories WHERE hash=?", (h,)).fetchone():
-            return
-
+            return "已存在相同记忆，跳过保存"
         c.execute(
-            "INSERT INTO memories VALUES (NULL,?,?,?,?)",
-            (now().isoformat(), enc(text), emotion_score(text), h)
+            "INSERT INTO memories VALUES (NULL,?,?,?,?,?)",
+            (now().isoformat(), category, enc(content), emotion_score(content), h)
         )
+    return f"记忆已保存：[{category}] {content}"
 
-# =========================
-# 遗忘曲线（核心）
-# =========================
 def decay(emotion, created_at):
     t = datetime.datetime.fromisoformat(created_at)
     hours = (now() - t).total_seconds() / 3600
-
-    # 情绪越高，越不容易被遗忘
     return emotion * math.exp(-0.04 * hours)
 
-# =========================
-# 记忆召回（筛选）
-# =========================
-def recall():
+def get_memories(category=None):
     with sqlite3.connect(DB) as c:
-        rows = c.execute(
-            "SELECT created_at, content, emotion FROM memories"
-        ).fetchall()
+        if category:
+            rows = c.execute(
+                "SELECT created_at, category, content, emotion FROM memories WHERE category=?",
+                (category,)
+            ).fetchall()
+        else:
+            rows = c.execute(
+                "SELECT created_at, category, content, emotion FROM memories"
+            ).fetchall()
+
+    if not rows:
+        return "暂无记忆"
 
     scored = []
-
     for r in rows:
-        weight = decay(r[2], r[0])
-
-        # 过滤掉弱记忆
-        if weight < 0.3:
-            continue
-
-        scored.append((weight, dec(r[1])))
+        weight = decay(r[3], r[0])
+        scored.append((weight, r[1], dec(r[2]), r[0]))
 
     scored.sort(reverse=True)
 
-    return [x[1] for x in scored[:5]]
+    lines = []
+    for weight, cat, content, created_at in scored[:20]:
+        lines.append(f"[{cat}] {content}  （{created_at[:10]}）")
 
-# =========================
-# 时间状态
-# =========================
-def period():
-    h = now().hour
-    if 6 <= h < 12:
-        return "清晨"
-    if 12 <= h < 18:
-        return "白天"
-    if 18 <= h < 23:
-        return "夜晚"
-    return "深夜"
+    return "\n".join(lines)
 
-# =========================
-# 成长状态（非固定等级）
-# =========================
-def stage():
-    with sqlite3.connect(DB) as c:
-        n = c.execute("SELECT COUNT(*) FROM memories").fetchone()[0]
+# MCP Tools definition
+TOOLS = [
+    {
+        "name": "save_memory",
+        "description": "保存一条记忆，指定分类和内容",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "category": {"type": "string", "description": "记忆分类，例如：爱、日常、重要"},
+                "content": {"type": "string", "description": "记忆内容"}
+            },
+            "required": ["category", "content"]
+        }
+    },
+    {
+        "name": "get_memories",
+        "description": "获取已保存的记忆，可按分类筛选",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "category": {"type": "string", "description": "筛选分类，留空则返回全部"}
+            }
+        }
+    }
+]
 
-    if n < 10:
-        return "刚开始接触"
-    elif n < 40:
-        return "逐渐熟悉"
-    elif n < 100:
-        return "形成稳定互动"
-    else:
-        return "长期持续关系"
-
-# =========================
-# 核心上下文注入
-# =========================
-def context_pack(user_text):
-
-    save(user_text)
-
-    mems = recall()
-    t = period()
-    s_ = stage()
-
-    text = f"现在是{t}。\n状态：{s_}\n"
-
-    if mems:
-        text += "\n你隐约记得一些重要片段：\n"
-        for m in mems:
-            text += f"- {m}\n"
-
-    return text.strip()
-
-# =========================
-# MCP Server
-# =========================
 class H(BaseHTTPRequestHandler):
 
     def log_message(self, *a):
         pass
 
-    def do_POST(self):
+    def do_GET(self):
+        if not self.path.startswith(f"/mcp/{TOKEN}"):
+            self.send_response(401)
+            self.end_headers()
+            return
+        # SSE endpoint for MCP handshake
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
 
+    def do_POST(self):
         try:
-            if not auth(self.path):
+            if not self.path.startswith(f"/mcp/{TOKEN}"):
                 self.send_response(401)
                 self.end_headers()
                 return
 
-            body = json.loads(
-                self.rfile.read(
-                    int(self.headers.get("Content-Length", 0))
-                )
-            )
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length)) if length else {}
 
-            name = body.get("params", {}).get("name")
-            args = body.get("params", {}).get("arguments", {})
+            method = body.get("method", "")
+            bid = body.get("id")
+            params = body.get("params", {})
 
-            if name == "context":
-                res = context_pack(args.get("content", ""))
+            if method == "initialize":
+                out = {
+                    "jsonrpc": "2.0", "id": bid,
+                    "result": {
+                        "protocolVersion": "2024-11-05",
+                        "capabilities": {"tools": {}},
+                        "serverInfo": {"name": "memory-server", "version": "1.0"}
+                    }
+                }
+
+            elif method == "tools/list":
+                out = {
+                    "jsonrpc": "2.0", "id": bid,
+                    "result": {"tools": TOOLS}
+                }
+
+            elif method == "tools/call":
+                name = params.get("name")
+                args = params.get("arguments", {})
+
+                if name == "save_memory":
+                    res = save_memory(args.get("category", "默认"), args.get("content", ""))
+                elif name == "get_memories":
+                    res = get_memories(args.get("category"))
+                else:
+                    res = f"未知工具: {name}"
+
+                out = {
+                    "jsonrpc": "2.0", "id": bid,
+                    "result": {
+                        "content": [{"type": "text", "text": res}]
+                    }
+                }
+
+            elif method == "notifications/initialized":
+                self.send_response(200)
+                self.end_headers()
+                return
+
             else:
-                res = ""
-
-            out = {
-                "jsonrpc": "2.0",
-                "id": body.get("id"),
-                "result": {
-                    "content": [
-                        {"type": "text", "text": res}
-                    ]
+                out = {
+                    "jsonrpc": "2.0", "id": bid,
+                    "result": {}
                 }
-            }
 
-        except:
+        except Exception as e:
             out = {
-                "jsonrpc": "2.0",
-                "id": None,
-                "result": {
-                    "content": [
-                        {"type": "text", "text": "error"}
-                    ]
-                }
+                "jsonrpc": "2.0", "id": None,
+                "error": {"code": -32603, "message": str(e)}
             }
 
         self.send_response(200)
+        self.send_header("Content-Type", "application/json")
         self.end_headers()
         self.wfile.write(json.dumps(out).encode())
 
-# =========================
-# 启动
-# =========================
 if __name__ == "__main__":
     init()
-    HTTPServer(("", int(os.environ.get("PORT", 3456))), H).serve_forever()
-
+    port = int(os.environ.get("PORT", 3456))
+    print(f"MCP memory server running on port {port}")
+    HTTPServer(("", port), H).serve_forever()
