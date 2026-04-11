@@ -6,7 +6,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 👉 你的API
+// 👉 聊天接口
 app.post("/chat", (req, res) => {
   const userMessage = req.body.message;
 
@@ -17,11 +17,14 @@ app.post("/chat", (req, res) => {
   });
 });
 
-// 👉 测试用
+// 👉 首页测试
 app.get("/", (req, res) => {
   res.send("API is running");
 });
 
-app.listen(3000, () => {
-  console.log("Server running");
+// ❗关键：Railway端口
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log("Server running on port " + PORT);
 });
