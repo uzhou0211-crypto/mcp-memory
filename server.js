@@ -6,25 +6,32 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 👉 聊天接口
+// 🔐 固定密码（前后端必须一样）
+const TOKEN = "123456";
+
+// 聊天接口
 app.post("/chat", (req, res) => {
-  const userMessage = req.body.message;
+  const auth = req.headers.authorization;
 
-  const reply = "你刚刚说的是：" + userMessage;
+  // ❌ 没带对密码就拒绝
+  if (auth !== TOKEN) {
+    return res.status(403).json({ error: "No permission" });
+  }
 
-  res.json({
-    reply: reply
-  });
+  const message = req.body.message;
+
+  if (!message) {
+    return res.status(400).json({ error: "No message" });
+  }
+
+  // 🧠 模拟AI回复
+  const reply = "我收到了：" + message;
+
+  res.json({ reply });
 });
 
-// 👉 首页测试
-app.get("/", (req, res) => {
-  res.send("API is running");
-});
-
-// ❗关键：Railway端口
+// 启动
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
+  console.log("running on " + PORT);
 });
