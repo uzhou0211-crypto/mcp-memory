@@ -6,14 +6,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 🔐 固定密码（前后端必须一样）
-const TOKEN = "123456";
+// 🔐 只有后端知道的密码（前端完全看不到）
+const TOKEN = "shunshun110";
 
-// 聊天接口
-app.post("/chat", (req, res) => {
+app.post("/chat", async (req, res) => {
+
   const auth = req.headers.authorization;
 
-  // ❌ 没带对密码就拒绝
   if (auth !== TOKEN) {
     return res.status(403).json({ error: "No permission" });
   }
@@ -24,14 +23,11 @@ app.post("/chat", (req, res) => {
     return res.status(400).json({ error: "No message" });
   }
 
-  // 🧠 模拟AI回复
-  const reply = "我收到了：" + message;
+  // 🧠 这里以后接 Claude / GPT（现在先模拟）
+  const reply = `我已经安全收到你的消息：${message}`;
 
   res.json({ reply });
 });
 
-// 启动
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log("running on " + PORT);
-});
+app.listen(PORT, () => console.log("running"));
