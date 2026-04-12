@@ -4,7 +4,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 # --- 核心配置 ---
 # 这里会读取你在 Variables 设置的 MCP_TOKEN
-TOKEN = os.environ.get("MCP_TOKEN", "changeme") 
+TOKEN ="xiaoshun2026" 
 DB_PATH = "./data/ultimate_brain.db"
 
 def init_soul():
