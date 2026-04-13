@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,20 +7,20 @@
 
     <style>
         :root {
-            --blue: #ace0ff;
-            --dark: #051923;
-            --sunset: #FF8C42;
-            --gold: #FFBF80;
-            --paper: #f7f4ef;
+            --main-blue: #6FA8DC;   /* 主蓝 */
+            --deep-blue: #4F7FB3;   /* 背景蓝 */
+            --light-bg: #FFFFFF;    /* 页面白 */
+            --sunset: #D9B7A1;
+            --gold: #D0A1B6;
+            --text: #4A4C4F;
         }
 
         body {
             margin: 0;
-            background: var(--dark);
-            color: var(--blue);
+            background: var(--light-bg);
+            color: var(--text);
             height: 100vh;
             overflow: hidden;
-            perspective: 2000px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -30,17 +30,22 @@
         .nav {
             margin-top: 20px;
             display: flex;
-            gap: 10px;
-            z-index: 100;
+            gap: 12px;
         }
 
         .nav-btn {
-            background: rgba(172,224,255,0.1);
-            border: 1px solid var(--blue);
-            color: var(--blue);
+            background: #ffffff;
+            border: 1px solid var(--main-blue);
+            color: var(--main-blue);
             padding: 8px 18px;
             border-radius: 20px;
             cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .nav-btn:hover {
+            background: var(--main-blue);
+            color: #fff;
         }
 
         .stage {
@@ -60,39 +65,52 @@
             padding: 30px;
             box-sizing: border-box;
             backface-visibility: hidden;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
         }
 
+        /* 客厅 */
         .living {
-            background: radial-gradient(circle, #0a2e3f, #051923);
+            background: var(--deep-blue);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
         }
 
+        /* 圆形（核心优化） */
         .vinyl {
             width: 200px;
             height: 200px;
             border-radius: 50%;
-            background: repeating-radial-gradient(circle, #222 0px, #111 2px, #222 4px);
-            animation: spin 8s linear infinite;
+
+            background: radial-gradient(circle at 30% 30%,
+                #8FC1EA 0%,
+                var(--main-blue) 60%,
+                #5B90C9 100%
+            );
+
+            box-shadow:
+                inset 0 4px 10px rgba(255,255,255,0.25),
+                inset 0 -8px 20px rgba(0,0,0,0.15),
+                0 10px 25px rgba(0,0,0,0.2);
+
+            animation: spin 12s linear infinite;
         }
 
         @keyframes spin {
-            from { transform: rotate(0); }
+            from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
 
+        /* 书房 */
         .study {
-            background: var(--paper);
-            color: #1a1814;
+            background: #ffffff;
             transform: rotateY(180deg);
         }
 
+        /* 卧室 */
         .love {
             background: linear-gradient(135deg, var(--sunset), var(--gold));
-            color: #5a2e1c;
             transform: rotateX(180deg);
         }
 
@@ -101,7 +119,6 @@
             text-align: center;
             font-size: 15px;
             line-height: 1.8;
-            transition: 0.3s;
         }
 
         .emotion {
@@ -122,6 +139,7 @@
 </div>
 
 <div class="stage" id="stage">
+
     <div class="room living">
         <div class="vinyl"></div>
         <div id="living" class="content"></div>
@@ -136,6 +154,7 @@
         <h2>日落情书</h2>
         <div id="love" class="content"></div>
     </div>
+
 </div>
 
 <script>
@@ -154,7 +173,7 @@
 
     async function update() {异步 函数 更新() {
         try {尝试 {
-            const常量 res = await fetch("/get_house_data");
+            const常量 res雷斯雷斯 = await fetch("/get_house_data");
             const data = await res.json();
 
             if (JSON.stringify(data) === JSON.stringify(cache)) return;如果 (JSON.stringify(数据) === JSON.stringify(缓存)) 返回;
@@ -169,11 +188,11 @@
             );
 
             setSafe("love",
-                `${data.love.text}<span class="emotion">${data.love.time || ""}</span>``${data.love.text}<span class="emotion">${data.love.时间 || ""}</span>``${data.love.text}<span class="emotion">${data.love.时间 || ""}</span>``${data.love.text}<span class="emotion">${data.love.时间 || ""}</span>`
+                `${data.love.text}<span class="emotion">${data.love.time || ""}</span>``${data数据.love爱.text文本}<span class="emotion">${data.love.时间 || ""}</span>``${data数据.love爱.text文本}<span class="emotion">${data数据.love爱.time || ""}</span>``${数据.爱.文本}<span class="emotion">${data.love.时间 || ""}</span>`
             );
 
         } catch (e) {
-            console.log("fetch error");控制台.日志("fetch error");
+            console.log("error");控制台.日志("错误");控制台.日志("错误");控制台.日志("错误");
         }
     }
 
