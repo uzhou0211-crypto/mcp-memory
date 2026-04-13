@@ -10,7 +10,6 @@ CORS(app)
 
 ACCESS_TOKEN = os.environ.get("ACCESS_TOKEN", "1314")
 
-# ✔ Railway 持久化支持
 DB_PATH = os.path.join(os.environ.get("DATA_DIR", "."), "brain.db")
 
 db_lock = threading.Lock()
@@ -39,6 +38,16 @@ def init_db():
         conn.commit()
 
 
+@app.route("/")
+def home():
+    return render_template("index.html")
+
+
+@app.route("/archive")
+def archive():
+    return render_template("index.html")
+
+
 @app.route("/sync", methods=["POST"])
 def sync():
     data = request.json or {}
@@ -64,48 +73,6 @@ def sync():
     return jsonify({"status": "stored"})
 
 
-@app.route("/move_all_in")
-def move_all_in():
-    token = request.args.get("token")
-    if token != ACCESS_TOKEN:
-        return "Token Error", 403
-
-    books = ["Our Bodies, Ourselves", "The Second Sex", "One Hundred Years of Solitude"]
-    songs = ["Holocene", "Pink Moon", "Gymnopedie No.1"]
-
-    with db_lock:
-        conn = get_conn()
-
-        for b in books:
-            conn.execute("""
-                INSERT INTO memory (room, content, emotion, memory_type, time)
-                VALUES (?, ?, ?, ?, ?)
-            """, (
-                "study",
-                "Library Add: " + b,
-                "neutral",
-                "long",
-                datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            ))
-
-        for s in songs:
-            conn.execute("""
-                INSERT INTO memory (room, content, emotion, memory_type, time)
-                VALUES (?, ?, ?, ?, ?)
-            """, (
-                "living",
-                "Playing: " + s,
-                "calm",
-                "short",
-                datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            ))
-
-        conn.commit()
-        conn.close()
-
-    return "Success! Assets moved."
-
-
 @app.route("/get_house_data")
 def get_house_data():
     res = {}
@@ -113,7 +80,7 @@ def get_house_data():
     with get_conn() as conn:
         rooms = ["living", "study", "love"]
 
-        for r in rooms:  # 对于房间 r in 房间列表
+        for r in rooms:
             row = conn.execute("""
                 SELECT content, time, emotion
                 FROM memory
@@ -136,11 +103,6 @@ def get_house_data():
                 }
 
     return jsonify(res)
-
-
-@app.route("/archive")
-def archive():
-    return render_template("index.html")
 
 
 if __name__ == "__main__":
