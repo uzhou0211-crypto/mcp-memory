@@ -55,8 +55,8 @@ def move_all_in():
     
     conn = get_conn()
     for b in books:用于b在书籍中：
-        conn.execute("INSERT INTO memory (room, content, time) VALUES (?, ?, ?)"“INSERT INTO memory (room, content, time) VALUES (?, ?, ?)”,连接.执行("插入内存 (房间, 内容, 时间) 值 (?, ?, ?)",“INSERT INTO memory (room, content, time) VALUES (?, ?, ?)”，连接.执行(“插入内存 (房间, 内容, 时间) 值 (?, ?, ?)”,“INSERT INTO memory (room, content, time) VALUES (?, ?, ?)”，连接.执行(“插入内存 (房间, 内容, 时间) 值 (?, ?, ?)”，“INSERT INTO memory (room, content, time) VALUES (?, ?, ?)”，连接.执行(“插入内存 (房间, 内容, 时间) 值 (?, ?, ?)”,“INSERT INTO memory (room, content, time) VALUES (?, ?, ?)”，连接.执行(“插入内存 (房间, 内容, 时间) 值 (?, ?, ?)”，“INSERT INTO memory (room, content, time) VALUES (?, ?, ?)”，连接.执行(“插入内存 (房间, 内容, 时间) 值 (?, ?, ?)”，“INSERT INTO memory (room, content, time) VALUES (?, ?, ?)”，连接.执行(“插入内存 (房间, 内容, 时间) 值 (?, ?, ?)”,
-                     ("study", f"书架新增：《{b}》", datetime.datetime.now().strftime("%H:%M:%S")))(“study”, f“书架新增：《{b}》", datetime.datetime.now().strftime(“%H:%M:%S”)))（“study”, f“书架新增：《{b}》”, datetime.datetime.now().strftime(“%H:%M:%S”))（“study”, f“书架新增：《{b}》”, datetime.datetime.now().strftime(“%H:%M:%S”））（“study”, f“书架新增：《{b}》”, datetime.datetime.now().strftime(“%H:%M:%S”))（“study”, f“书架新增：《{b}》”, datetime.datetime.now().strftime(“%H:%M:%S”))（“study”, f“书架新增：《{b}》”, datetime.datetime.now().strftime(“%H:%M:%S”))（“study”, f“书架新增：《{b}》”, datetime.datetime.now().strftime(“%H:%M:%S”））
+        conn.execute("INSERT INTO memory (room, content, time) VALUES (?, ?, ?)",连接.执行("插入内存 (房间, 内容, 时间) 值 (?, ?, ?)",
+                     ("study", f"书架新增：《{b}》", datetime.datetime.now().strftime("%H:%M:%S")))(“study”, f“书架新增：《{b}》", datetime.datetime.now().strftime(“%H:%M:%S”)))
     for s in songs:对于在歌曲中：
         conn.execute("INSERT INTO memory (room, content, time) VALUES (?, ?, ?)",连接.执行("插入内存 (房间, 内容, 时间) 值 (?, ?, ?)",
                      ("living", f"正在播放：{s}", datetime.datetime.now().strftime("%H:%M:%S")))
@@ -66,10 +66,10 @@ def move_all_in():
 
 @app.route("/get_house_data")
 def get_house_data():
-    conn = get_conn()连接 = 获取连接()
+    conn = get_conn()
     rooms = ["living", "study", "love"]
     res = {}
-    for r in rooms:对于房间 r in在 房间列表：
+    for r in rooms:对于房间 r in在 房间列表：房间：对于房间 r 在房间列表中：房间：对于房间 r 在房间列表中：房间：对于房间 r 在房间列表中：
         row = conn.execute("SELECT content, time FROM memory WHERE room=? ORDER BY id DESC LIMIT 1", (r,)).fetchone()
         res[r] = {"text": row["content"], "time": row["time"]} if row else {"text": "等待开启...", "time": ""}
     conn.close()
@@ -79,11 +79,12 @@ def get_house_data():
 def archive():定义 归档():
     token = request.args.get("token")
     if token != ACCESS_TOKEN: return "密钥错误", 403
-    return render_template("index.html")返回 渲染模板("index.html")
+    return render_template("index.html")返回 渲染模板("index.html"“index.html”html)索引。html”)索引.html)
 
 if __name__ == "__main__":如果__name__ =="__main__":
     init_db()
     app.run(host="0.0.0.0", port=5000)
+
 
 
   
