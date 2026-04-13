@@ -5,9 +5,9 @@ import time
 import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-PORT = int(os.environ.get("PORT", 8000))
+PORT = int(os.environ.get("PORT", 8080))
 DATA_DIR = os.environ.get("DATA_DIR", "./data")
-DB_PATH = os.path.join(DATA_DIR, "brain_v43.db")
+DB_PATH = os.path.join(DATA_DIR, "brain_v43_1.db")
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -29,7 +29,7 @@ def save_memory(mtype, content):
     conn = db()
     conn.execute(
         "INSERT INTO memory VALUES (?, ?, ?, ?)",
-        (str(uuid.uuid4()), mtype, json.dumps(content), time.time())
+        (str(uuid.uuid4()), mtype, json.dumps(content, ensure_ascii=False), time.time())
     )
     conn.commit()
     conn.close()
@@ -46,6 +46,13 @@ def load_memory(limit=200):
     return rows
 
 
+def safe_load(c):
+    try:
+        return json.loads(c)
+    except:
+        return c
+
+
 # ---------------- UI ----------------
 HTML = """
 <!DOCTYPE html>
@@ -53,14 +60,13 @@ HTML = """
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>V43 Brain</title>
+<title>V43.1 Brain Debug</title>
 <style>
 body {
     margin:0;
     font-family: Arial;
     background:#0f1115;
     color:white;
-    overflow:hidden;
 }
 
 #topbar {
@@ -68,8 +74,8 @@ body {
     background:#151923;
     display:flex;
     align-items:center;
-    padding:0 10px;
     justify-content:space-between;
+    padding:0 10px;
 }
 
 #container {
@@ -79,13 +85,14 @@ body {
 
 #left {
     width:40%;
-    border-right:1px solid #222;
     overflow:auto;
+    border-right:1px solid #222;
 }
 
 #right {
     flex:1;
-    position:relative;
+    display:flex;
+    flex-direction:column;
 }
 
 .card {
@@ -93,16 +100,12 @@ body {
     margin:10px;
     padding:10px;
     border-radius:10px;
-    cursor:grab;
-    position:relative;
 }
 
 #inputBox {
-    position:absolute;
-    bottom:10px;
-    left:10px;
-    right:10px;
     display:flex;
+    padding:10px;
+    border-top:1px solid #222;
 }
 
 #input {
@@ -116,20 +119,30 @@ button {
     margin-left:5px;
 }
 
-#stream {
-    padding:10px;
-    height:100%;
+#log {
+    flex:1;
     overflow:auto;
-    font-size:13px;
-    color:#aaa;
+    font-size:12px;
+    padding:10px;
+    background:#0b0d12;
+    color:#8f8f8f;
+    border-bottom:1px solid #222;
 }
+
+.log-item {
+    margin-bottom:6px;
+}
+
+.ok { color:#5cff8d; }
+.err { color:#ff5c5c; }
+
 </style>
 </head>
 
 <body>
 
 <div id="topbar">
-    <div>🧠 V43 Private Brain</div>
+    <div>🧠 V43.1 Debug Brain</div>
     <div onclick="heartbeat()">heartbeat</div>
 </div>
 
@@ -138,7 +151,7 @@ button {
 <div id="left"></div>
 
 <div id="right">
-    <div id="stream"></div>
+    <div id="log"></div>
 
     <div id="inputBox">
         <input id="input" placeholder="write memory...">
@@ -150,65 +163,67 @@ button {
 
 <script>
 
+function log(msg, type="ok"){
+    let div = document.createElement("div");
+    div.className = "log-item " + type;
+    div.innerText = "[" + new Date().toLocaleTimeString() + "] " + msg;
+    document.getElementById("log").appendChild(div);
+}
+
 function load(){
     fetch('/api/memory')
-    .then(r=>r.json())
+    .then(r=>{
+        if(!r.ok) throw new Error("memory fetch failed");
+        return r.json();
+    })
     .then(data=>{
         let left = document.getElementById('left');
         left.innerHTML = '';
         data.forEach(m=>{
             let div = document.createElement('div');
             div.className = 'card';
-            div.innerText = m.type + "\\n" + m.content;
-            makeDraggable(div);
+            div.innerText = m.type + "\\n" + JSON.stringify(m.content);
             left.appendChild(div);
         });
+        log("memory loaded");
+    })
+    .catch(e=>{
+        log("memory error: " + e.message, "err");
     });
 }
 
 function send(){
     let val = document.getElementById('input').value;
+
+    log("sending: " + val);
+
     fetch('/api/save', {
         method:'POST',
+        headers: {'Content-Type':'application/json'},
         body: JSON.stringify({type:'chat', content:val})
-    }).then(()=>load());
+    })
+    .then(r=>{
+        if(!r.ok) throw new Error("save failed");
+        return r.json();
+    })
+    .then(()=>{
+        log("saved ok");
+        load();
+    })
+    .catch(e=>{
+        log("save error: " + e.message, "err");
+    });
 }
 
 function heartbeat(){
-    fetch('/heartbeat');
+    fetch('/heartbeat')
+    .then(r=>r.json())
+    .then(()=>log("heartbeat ok"))
+    .catch(e=>log("heartbeat error", "err"));
 }
 
-function streamLog(msg){
-    let s = document.getElementById('stream');
-    let div = document.createElement('div');
-    div.innerText = msg;
-    s.appendChild(div);
-    s.scrollTop = s.scrollHeight;
-}
-
-// draggable
-function makeDraggable(el){
-    let offsetX, offsetY, dragging=false;
-
-    el.onmousedown = function(e){
-        dragging=true;
-        offsetX=e.offsetX;
-        offsetY=e.offsetY;
-    };
-
-    document.onmousemove = function(e){
-        if(dragging){
-            el.style.position='absolute';
-            el.style.left=(e.pageX-offsetX)+'px';
-            el.style.top=(e.pageY-offsetY)+'px';
-        }
-    };
-
-    document.onmouseup = ()=>dragging=false;
-}
-
-load();
 setInterval(load, 5000);
+load();
 
 </script>
 
@@ -221,50 +236,62 @@ setInterval(load, 5000);
 class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
-        if self.path == "/":
-            self.send_response(200)
-            self.send_header("Content-type", "text/html")
+        try:
+            if self.path == "/":
+                self.send_response(200)
+                self.send_header("Content-type", "text/html")
+                self.end_headers()
+                self.wfile.write(HTML.encode())
+                return
+
+            if self.path == "/api/memory":
+                data = load_memory()
+                out = [
+                    {"type": t, "content": safe_load(c), "time": ts}
+                    for t, c, ts in data
+                ]
+                self.send_json(out)
+                return
+
+            if self.path == "/heartbeat":
+                save_memory("heartbeat", {"t": time.time()})
+                self.send_json({"ok": True})
+                return
+
+            self.send_response(404)
             self.end_headers()
-            self.wfile.write(HTML.encode())
-            return
 
-        if self.path == "/api/memory":
-            data = load_memory()
-            out = [
-                {"type": t, "content": json.loads(c), "time": ts}
-                for t, c, ts in data
-            ]
-            self.send_json(out)
-            return
-
-        if self.path == "/heartbeat":
-            save_memory("heartbeat", {"t": time.time()})
-            self.send_json({"ok": True})
-            return
-
-        self.send_response(404)
-        self.end_headers()
+        except Exception as e:
+            self.send_json({"error": str(e)}, code=500)
 
     def do_POST(self):
-        if self.path == "/api/save":
-            length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(length).decode()
-            data = json.loads(body)
+        try:
+            if self.path == "/api/save":
+                length = int(self.headers.get('Content-Length', 0))
+                body = self.rfile.read(length).decode()
 
-            save_memory(data.get("type","chat"), data.get("content",""))
+                try:
+                    data = json.loads(body)
+                except:
+                    data = {"type": "chat", "content": body}
 
-            self.send_json({"ok": True})
-            return
+                save_memory(data.get("type", "chat"), data.get("content", ""))
 
-        self.send_response(404)
-        self.end_headers()
+                self.send_json({"ok": True})
+                return
 
-    def send_json(self, obj):
-        self.send_response(200)
+            self.send_response(404)
+            self.end_headers()
+
+        except Exception as e:
+            self.send_json({"error": str(e)}, code=500)
+
+    def send_json(self, obj, code=200):
+        self.send_response(code)
         self.send_header("Content-type", "application/json")
         self.end_headers()
-        self.wfile.write(json.dumps(obj).encode())
+        self.wfile.write(json.dumps(obj, ensure_ascii=False).encode())
 
 
-print("V43 Brain running on", PORT)
-HTTPServer(("", PORT), Handler).serve_forever()
+print("V43.1 Debug Brain running on", PORT)
+HTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
