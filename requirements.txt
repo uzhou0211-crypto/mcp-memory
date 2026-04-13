@@ -1,1 +1,2 @@
-# requirements
+Flask
+flask-cors
