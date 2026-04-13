@@ -1,69 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小顺的家</title>
+
+<style>
+:root {
+    --blue: #6FA8DC;
+    --deep: #4F7FB3;
+    --bg: #ffffff;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: sans-serif;
+}
+
+/* 顶部按钮 */
+.nav {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    z-index: 10;
+}
+
+.nav-btn {
+    background: white;
+    border: 1px solid var(--blue);
+    color: var(--blue);
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+}
+
+/* 舞台 */
+.stage {
+    width: 340px;
+    height: 500px;
+    margin-top: 30px;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: 1s;
+}
+
+/* 房间 */
+.room {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 25px;
+    padding: 30px;
+    box-sizing: border-box;
+    backface-visibility: hidden;
+}
+
+/* 客厅 */
+.living {
+    background: var(--deep);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 💙 心脏（核心） */
+.heart {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+
+    background: radial-gradient(circle at 30% 30%,
+        #9FD3FF,
+        var(--blue),
+        #5B90C9
+    );
+
+    box-shadow:
+        0 0 20px rgba(111,168,220,0.5),
+        inset 0 5px 15px rgba(255,255,255,0.3);
+
+    animation: breathe 4s ease-in-out infinite;
+}
+
+/* 呼吸动画 */
+@keyframes breathe {
+    0%   { transform: scale(1); opacity: 0.9; }
+    50%  { transform: scale(1.08); opacity: 1; }
+    100% { transform: scale(1); opacity: 0.9; }
+}
+
+/* 书房 */
+.study {
+    background: white;
+    transform: rotateY(180deg);
+}
+
+/* 卧室 */
+.love {
+    background: linear-gradient(135deg, #D9B7A1, #D0A1B6);
+    transform: rotateX(180deg);
+}
+
+.content {
+    margin-top: 20px;
+    text-align: center;
+}
+</style>
+</head>
+
+<body>
+
+<div class="nav">
+    <button class="nav-btn" onclick="rot('rotateY(0deg)')">客厅</button>
+    <button class="nav-btn" onclick="rot('rotateY(180deg)')">书房</button>
+    <button class="nav-btn" onclick="rot('rotateX(180deg)')">卧室</button>
+</div>
+
+<div class="stage" id="stage">
+
+    <div class="room living">
+        <div id="heart" class="heart"></div>
+        <div id="living" class="content"></div>
+    </div>
+
+    <div class="room study">
+        <h2>书架</h2>
+        <div id="study" class="content"></div>
+    </div>
+
+    <div class="room love">
+        <h2>日落情书</h2>
+        <div id="love" class="content"></div>
+    </div>
+
+</div>
+
 <script>
 function rot(v){
     const el = document.getElementById("stage");
     if(el) el.style.transform = v;
 }
 
-/* 情绪驱动 */
+/* 💡 情绪 → 视觉变化 */
 function applyEmotion(emotion){
     const heart = document.getElementById("heart");
     if(!heart) return;
 
-    heart.style.boxShadow = "0 0 20px rgba(111,168,220,0.5)";
-
     if(emotion === "happy"){
         heart.style.filter = "brightness(1.2)";
+        heart.style.animationDuration = "3s";
     }
     else if(emotion === "sad"){
-        heart.style.filter = "brightness(0.6)";
+        heart.style.filter = "brightness(0.7)";
+        heart.style.animationDuration = "6s";
     }
     else if(emotion === "love"){
-        heart.style.boxShadow = "0 0 40px rgba(255,120,150,0.8)";
+        heart.style.boxShadow = "0 0 40px rgba(255,120,150,0.6)";
     }
-    else{
+    else {
         heart.style.filter = "none";
+        heart.style.animationDuration = "4s";
     }
 }
 
-/* 🔥 调试输出 */
-function debug(data){
-    console.log("🔥 当前数据:", data);
-}
-
-/* 更新 */
+/* 数据更新 */
 async function update(){
     try{
         const res = await fetch("/get_house_data");
         const data = await res.json();
 
-        debug(data);
-
         if(!data) return;
 
-        const living = data.living || {};
-        const study = data.study || {};
-        const love = data.love || {};
-
         document.getElementById("living").innerHTML =
-            (living.text || "（客厅空的）") +
-            `<br><small>${living.emotion || ""}</small>`;
+            data.living.text || "";
 
         document.getElementById("study").innerHTML =
-            study.text || "（书房空的）";
+            data.study.text || "";
 
         document.getElementById("love").innerHTML =
-            love.text || "（卧室空的）";
+            data.love.text || "";
 
-        applyEmotion(living.emotion);
+        /* 🔥 应用情绪 */
+        applyEmotion(data.living.emotion);
 
-    }catch(e){
-        console.log("❌ 请求失败", e);
-
-        document.getElementById("living").innerHTML =
-            "⚠️ 连不上后端";
-    }
+    }catch(e){}
 }
 
-setInterval(update, 3000);
+setInterval(update, 4000);
 update();
 </script>
+
+</body>
+</html>
