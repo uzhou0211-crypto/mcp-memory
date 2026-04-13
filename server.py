@@ -113,40 +113,40 @@ def get_house_data():
     with get_conn() as conn:
         rooms = ["living", "study", "love"]
 
-        for r in rooms:对于房间 r in 房间列表：
+        for r in rooms:  # 对于房间 r in 房间列表
             row = conn.execute("""
-                SELECT content, time, emotion选择内容、时间、情感
-                FROM memory来自记忆
-                WHERE room=?其中房间=?
-                ORDER BY id DESC按id降序排列
-                LIMIT 1限制1条
+                SELECT content, time, emotion
+                FROM memory
+                WHERE room=?
+                ORDER BY id DESC
+                LIMIT 1
             """, (r,)).fetchone()
 
-            if row:如果行：if行：如果行：行：如果行：if行：如果行：
+            if row:
                 res[r] = {
                     "text": row["content"],
-                    "time": row["time"],"时间": 行["时间"],"时间": 行["时间"],"时间": 行["时间"],
-                    "emotion": row["emotion"]"情绪": 行["情绪"]
+                    "time": row["time"],
+                    "emotion": row["emotion"]
                 }
-            else:否则:
+            else:
                 res[r] = {
-                    "text": "Waiting for Xiao Shun...","text"“文本”: "等待小顺...",
-                    "time": "","时间": "",
-                    "emotion": "neutral""情绪": "neutral"“中性”"emotion"“情绪”: "neutral"“中性”情绪: "neutral"
+                    "text": "Waiting for Xiao Shun...",
+                    "time": "",
+                    "emotion": "neutral"
                 }
 
     return jsonify(res)
 
 
 @app.route("/archive")
-def archive():定义 归档():
-    return render_template渲染模板("index.html"“index.html”)返回 渲染模板("index.html"“index.html”)返回 render_template 渲染模板("index.html"“index.html”)返回 渲染模板("index.html"“index.html”)
+def archive():
+    return render_template("index.html")
 
 
-if __name__ == "__main__":如果__name__ =="__main__":
+if __name__ == "__main__":
     init_db()
-    port = int(os.environ.get("PORT", 5000))端口 =int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)app.run(host="0.0.0.0", port=端口)host="0.0.0.0", 端口=端口)app.run(host="0.0.0.0", 端口=端口)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
 
 
 
