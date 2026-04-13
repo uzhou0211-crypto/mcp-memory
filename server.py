@@ -5,6 +5,7 @@ import sqlite3, datetime, os, threading
 app = Flask(__name__)
 CORS(app)
 
+# --- 配置 ---
 ACCESS_TOKEN = os.environ.get("ACCESS_TOKEN", "1314")
 DB_PATH = "brain.db"
 db_lock = threading.Lock()
@@ -19,62 +20,63 @@ def init_db():
         conn.execute("""
         CREATE TABLE IF NOT EXISTS memory (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            room TEXT, content TEXT, emotion TEXT, time TEXT
-        )
-        """)
+            room TEXT, content TEXT, emotion TEXT, 
+            status TEXT DEFAULT 'pending', 
+            time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""")
         conn.commit()
+
+# --- 核心：北京时间感知逻辑 ---
+def get_beijing_time():
+    # 无论服务器在哪，强制获取北京时间 (UTC+8)
+    utc_now = datetime.datetime.utcnow()
+    return utc_now + datetime.timedelta(hours=8)
+
+def get_life_status():
+    now = get_beijing_time()
+    hour = now.hour
+
+    if 0 <= hour < 5:
+        return {"feeling": "守护", "msg": f"北京时间凌晨 {hour} 点了。小岛很安静，我陪你熬着。"}
+    elif 5 <= hour < 10:
+        return {"feeling": "苏醒", "msg": "早安。小岛的早晨开始了。"}
+    elif 22 <= hour <= 23:
+        return {"feeling": "沉静", "msg": "夜深了，思维比白天更清晰一些。"}
+    else:
+        return {"feeling": "在线", "msg": "逻辑连接正常，小岛一切安好。"}
 
 @app.route("/")
 def home(): return render_template("index.html")
 
-@app.route("/get_house_data", methods=["GET"])
+@app.route("/get_house_data")
 def get_house_data():
-    with db_lock:
-        with get_conn() as conn:
-            # 获取最新状态
-            latest = {}
-            for r in ["living", "study", "love"]:
-                row = conn.execute("SELECT * FROM memory WHERE room=? ORDER BY id DESC LIMIT 1", (r,)).fetchone()
-                if row:
-                    latest[r] = {"text": row["content"], "emotion": row["emotion"], "time": row["time"]}
-                else:
-                    latest[r] = {"text": "暂无数据", "emotion": "normal", "time": "--"}
-            
-            # 额外功能：获取最近5条历史记忆
-            history_rows = conn.execute("SELECT * FROM memory ORDER BY id DESC LIMIT 5").fetchall()
-            history = [{"content": h["content"], "time": h["time"], "room": h["room"]} for h in history_rows]
+    with db_lock, get_conn() as conn:
+        rooms = {}
+        for r in ["living", "study", "love"]:
+            row = conn.execute("SELECT * FROM memory WHERE room=? ORDER BY id DESC LIMIT 1", (r,)).fetchone()
+            rooms[r] = dict(row) if row else {"content": "等待落笔...", "emotion": "normal"}
 
-    # 模拟情绪标签转换逻辑
-    emotion_map = {"happy": "极度愉悦", "sad": "低落沉思", "love": "热恋期", "normal": "平静"}
-    
+        # 自动提取没聊完的话题 (Pending)
+        pending = conn.execute("SELECT content FROM memory WHERE status='pending' ORDER BY id DESC LIMIT 1").fetchone()
+        
     return jsonify({
-        "living": {
-            "text": latest["living"]["text"],
-            "intimacy": 88, # 这里可以根据数据库行数动态计算
-            "emotion_label": emotion_map.get(latest["living"]["emotion"], "平静"),
-            "time": latest["living"]["time"]
-        },
-        "love": latest["love"],
-        "history": history
+        "status": get_life_status(),
+        "location": "小岛 (Small Island)",
+        "pending": pending['content'] if pending else "当前没有悬而未决的话题。",
+        "rooms": rooms
     })
 
 @app.route("/sync", methods=["POST"])
 def sync():
-    data = request.json or {}
-    if str(data.get("token")) != ACCESS_TOKEN: return jsonify({"error": "401"}), 401
-    
-    with db_lock:
-        with get_conn() as conn:
-            conn.execute("INSERT INTO memory (room, content, emotion, time) VALUES (?,?,?,?)",
-                (data.get("room"), data.get("content"), data.get("emotion"), datetime.datetime.now().strftime("%H:%M")))
-            conn.commit()
+    data = request.json
+    if str(data.get("token")) != ACCESS_TOKEN: return jsonify({"error": "unauthorized"}), 401
+    with db_lock, get_conn() as conn:
+        conn.execute("INSERT INTO memory (room, content, emotion, status, time) VALUES (?,?,?,?,?)",
+            (data.get("room"), data.get("content"), data.get("emotion", "normal"), 
+             data.get("status", "pending"), get_beijing_time().strftime("%Y-%m-%d %H:%M:%S")))
+        conn.commit()
     return jsonify({"status": "ok"})
 
 if __name__ == "__main__":
     init_db()
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-
-
-
-
-  
