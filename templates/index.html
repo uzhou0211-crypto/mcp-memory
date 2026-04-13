@@ -1,49 +1,33 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>小顺的私有大脑</title>
-<style>
-    :root { --blue: #6FA8DC; --deep: #4F7FB3; --glass: rgba(255, 255, 255, 0.8); }
-    body { margin: 0; background: #f0f2f5; font-family: 'PingFang SC', sans-serif; display: flex; flex-direction: column; align-items: center; }
-    
-    /* 导航 */
-    .nav { margin: 20px 0; display: flex; gap: 10px; z-index: 100; }
-    .nav-btn { background: white; border: 1px solid var(--blue); color: var(--blue); padding: 8px 18px; border-radius: 20px; cursor: pointer; transition: 0.3s; font-weight: bold; }
-    .nav-btn.active { background: var(--blue); color: white; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小顺的家</title>
+    <style>
+        :root { --blue: #6FA8DC; --glass: rgba(255,255,255,0.9); }
+        body { margin: 0; background: #fdfdfd; display: flex; flex-direction: column; align-items: center; font-family: sans-serif; }
+        
+        .nav { margin: 30px 0; display: flex; gap: 10px; }
+        .nav-btn { background: white; border: 1px solid var(--blue); color: var(--blue); padding: 8px 18px; border-radius: 20px; cursor: pointer; }
+        .nav-btn.active { background: var(--blue); color: white; }
 
-    /* 3D 舞台 */
-    .stage { width: 360px; height: 550px; position: relative; transform-style: preserve-3d; transition: 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
-    .room { position: absolute; width: 100%; height: 100%; border-radius: 20px; backface-visibility: hidden; box-shadow: 0 15px 35px rgba(0,0,0,0.1); overflow: hidden; display: flex; flex-direction: column; }
+        .stage { width: 340px; height: 520px; position: relative; transform-style: preserve-3d; transition: 0.8s; }
+        .room { position: absolute; width: 100%; height: 100%; border-radius: 25px; padding: 25px; box-sizing: border-box; backface-visibility: hidden; background: var(--glass); box-shadow: 0 15px 35px rgba(0,0,0,0.05); border: 1px solid #eee; }
+        
+        .living { transform: rotateY(0deg); }
+        .study { transform: rotateY(180deg); }
+        .love { transform: rotateX(180deg); }
 
-    /* 统一的房间内部样式 */
-    .room-header { padding: 15px; background: rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
-    .room-body { flex: 1; padding: 20px; overflow-y: auto; }
-
-    /* 客厅：功能仪表盘 */
-    .living { background: white; color: #333; }
-    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-    .stat-card { background: #f8f9fa; padding: 15px; border-radius: 12px; border-left: 4px solid var(--blue); }
-    .stat-val { font-size: 20px; font-weight: bold; color: var(--deep); }
-    .stat-label { font-size: 12px; color: #888; }
-
-    /* 书房：记忆流 */
-    .study { background: #fff; transform: rotateY(180deg); }
-    .memo-item { padding: 10px; border-bottom: 1px solid #eee; font-size: 14px; }
-    .memo-time { font-size: 10px; color: #bbb; }
-
-    /* 卧室：日落情书 */
-    .love { background: linear-gradient(135deg, #eecda3, #efbbcf); transform: rotateX(180deg); color: #444; }
-    .letter-box { background: rgba(255,255,255,0.4); padding: 20px; border-radius: 15px; min-height: 200px; line-height: 1.8; }
-
-    /* 底部状态条 */
-    .status-bar { width: 360px; margin-top: 20px; padding: 10px; background: var(--glass); border-radius: 10px; font-size: 12px; color: #666; text-align: center; }
-</style>
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 14px; }
+        .status-tag { background: #eef5ff; color: var(--blue); padding: 2px 10px; border-radius: 10px; font-weight: bold; }
+        .body-text { font-size: 15px; line-height: 1.8; color: #444; }
+        .topic-highlight { background: #fffbe6; padding: 15px; border-radius: 12px; margin-top: 15px; font-size: 13px; border-left: 4px solid #ffe58f; }
+    </style>
 </head>
 <body>
 
-<div class="nav" id="nav-bar">
+<div class="nav">
     <button class="nav-btn active" onclick="rot('rotateY(0deg)', this)">仪表盘</button>
     <button class="nav-btn" onclick="rot('rotateY(180deg)', this)">记忆库</button>
     <button class="nav-btn" onclick="rot('rotateX(180deg)', this)">日落情书</button>
@@ -51,72 +35,49 @@
 
 <div class="stage" id="stage">
     <div class="room living">
-        <div class="room-header"><span>系统概览</span><span id="sys-status">● 在线</span></div>
-        <div class="room-body">
-            <div class="stat-grid">
-                <div class="stat-card"><div class="stat-val" id="intimacy-val">85%</div><div class="stat-label">亲密度</div></div>
-                <div class="stat-card"><div class="stat-val" id="mood-val">愉悦</div><div class="stat-label">当前情绪</div></div>
-                <div class="stat-card"><div class="stat-val" id="count-val">0</div><div class="stat-label">交互次数</div></div>
-                <div class="stat-card"><div class="stat-val" id="time-val">--:--</div><div class="stat-label">最后更新</div></div>
-            </div>
-            <p style="margin-top:20px; font-size:14px; color:#555;" id="living-msg">正在同步小顺的思绪...</p >
+        <div class="header">
+            <span id="loc-tag">小岛</span>
+            <span class="status-tag" id="feel-tag">同步中</span>
         </div>
+        <div class="body-text" id="status-msg">正在感知北京时间...</div>
     </div>
 
     <div class="room study">
-        <div class="room-header">记忆档案记录</div>
-        <div class="room-body" id="memo-list">
-            <div class="memo-item">正在调取数据库历史...</div>
+        <div class="header"><strong>未尽话题</strong></div>
+        <div class="body-text">
+            <p>上次聊到这里：</p >
+            <div class="topic-highlight" id="pending-msg">读取中...</div>
         </div>
     </div>
 
     <div class="room love">
-        <div class="room-header">日落情书</div>
-        <div class="room-body">
-            <div class="letter-box" id="love-content">加载中...</div>
-        </div>
+        <div class="header"><strong>日落情书</strong></div>
+        <div class="body-text" id="love-msg" style="white-space: pre-wrap;"></div>
     </div>
 </div>
 
-<div class="status-bar" id="sync-info">正在同步至私有服务器...</div>
-
 <script>
-function rot(v, btn){
-    document.getElementById("stage").style.transform = v;
-    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-}
+    function rot(v, btn) {
+        document.getElementById('stage').style.transform = v;
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
 
-async function update(){
-    try {
-        const res = await fetch("/get_house_data");
-        const data = await res.json();
-        
-        // 渲染仪表盘
-        document.getElementById("intimacy-val").innerText = data.living.intimacy + "%";
-        document.getElementById("mood-val").innerText = data.living.emotion_label;
-        document.getElementById("living-msg").innerText = data.living.text;
-        document.getElementById("time-val").innerText = data.living.time;
+    async function update() {
+        try {
+            const res = await fetch("/get_house_data");
+            const data = await res.json();
 
-        // 渲染书房（记忆列表逻辑）
-        const memoHtml = data.history.map(m => `
-            <div class="memo-item">
-                <div>${m.content}</div>
-                <div class="memo-time">${m.time} · ${m.room}</div>
-            </div>
-        `).join('');
-        document.getElementById("memo-list").innerHTML = memoHtml;
+            document.getElementById("loc-tag").innerText = "📍 " + data.location;
+            document.getElementById("feel-tag").innerText = data.status.feeling;
+            document.getElementById("status-msg").innerText = data.status.msg;
+            document.getElementById("pending-msg").innerText = data.pending;
+            document.getElementById("love-msg").innerText = data.rooms.love.content;
+        } catch(e) {}
+    }
 
-        // 渲染情书
-        document.getElementById("love-content").innerText = data.love.text;
-        
-        document.getElementById("sync-info").innerText = "最后同步时间: " + new Date().toLocaleTimeString();
-    } catch(e) { console.log("等待后端响应..."); }
-}
-
-setInterval(update, 5000);
-update();
+    setInterval(update, 5000);
+    update();
 </script>
 </body>
 </html>
-
