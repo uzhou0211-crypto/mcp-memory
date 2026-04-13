@@ -2,55 +2,184 @@
 <html>
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>小顺的家</title>
+
     <style>
-        :root { --blue: #ace0ff; --dark: #051923; --paper: #f7f4ef; --sunset: #FF8C42; --gold: #FFBF80; }
-        body { margin: 0; background: var(--dark); color: var(--blue); height: 100vh; overflow: hidden; perspective: 2000px; display: flex; flex-direction: column; align-items: center; font-family: 'PingFang SC', sans-serif; }
-        .nav { margin-top: 20px; display: flex; gap: 10px; z-index: 100; }
-        .nav-btn { background: rgba(172, 224, 255, 0.1); border: 1px solid var(--blue); color: var(--blue); padding: 8px 20px; border-radius: 20px; cursor: pointer; transition: 0.3s; }
-        .nav-btn:hover { background: var(--blue); color: var(--dark); }
-        
-        .home-stage { position: relative; width: 350px; height: 500px; margin-top: 30px; transform-style: preserve-3d; transition: 1.2s cubic-bezier(0.4, 0, 0.2, 1); }
-        .room { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 20px; border: 1px solid rgba(172, 224, 255, 0.2); padding: 30px; box-sizing: border-box; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-        
-        /* 客厅（保持深蓝） */
-        .living { background: radial-gradient(circle, #0a2e3f, #051923); display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .vinyl { width: 220px; height: 220px; border-radius: 50%; background: repeating-radial-gradient(circle, #222 0px, #111 2px, #222 4px); animation: spin 8s infinite linear; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        
-        /* 书房（保持羊皮纸） */
-        .study { background: var(--paper); color: #1a1814; transform: rotateY(180deg); }
-        
-        /* ⭐ 卧室（更新为日落暖黄渐变） */
-        .love { background: linear-gradient(135deg, var(--sunset), var(--gold)); color: #5a2e1c; transform: rotateX(180deg); border: 1px solid rgba(135, 70, 30, 0.3); }        .爱 { 背景: linear-gradient线性渐变(135deg度, var变量(--日落), var(--金色)); 颜色: #5a2e1c;变换: 旋转X(180deg); 边框: 1像素 实心 rgba(135, 70, 30, 0.3); }
-        .love h2 { text-align: center; color: #5a2e1c; }
-        
-        .content { margin-top: 20px; text-align: center; font-size: 14px; line-height: 1.6; }
+        :root {
+            --blue: #ace0ff;
+            --dark: #051923;
+            --sunset: #FF8C42;
+            --gold: #FFBF80;
+            --paper: #f7f4ef;
+        }
+
+        body {
+            margin: 0;
+            background: var(--dark);
+            color: var(--blue);
+            height: 100vh;
+            overflow: hidden;
+            perspective: 2000px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: 'PingFang SC', sans-serif;
+        }
+
+        .nav {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        .nav-btn {
+            background: rgba(172,224,255,0.1);
+            border: 1px solid var(--blue);
+            color: var(--blue);
+            padding: 8px 18px;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        .stage {
+            width: 340px;
+            height: 500px;
+            margin-top: 30px;
+            transform-style: preserve-3d;
+            transition: 1.2s ease;
+            position: relative;
+        }
+
+        .room {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 25px;
+            padding: 30px;
+            box-sizing: border-box;
+            backface-visibility: hidden;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+        }
+
+        .living {
+            background: radial-gradient(circle, #0a2e3f, #051923);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .vinyl {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: repeating-radial-gradient(circle, #222 0px, #111 2px, #222 4px);
+            animation: spin 8s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0); }
+            to { transform: rotate(360deg); }
+        }
+
+        .study {
+            background: var(--paper);
+            color: #1a1814;
+            transform: rotateY(180deg);
+        }
+
+        .love {
+            background: linear-gradient(135deg, var(--sunset), var(--gold));
+            color: #5a2e1c;
+            transform: rotateX(180deg);
+        }
+
+        .content {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 15px;
+            line-height: 1.8;
+            transition: 0.3s;
+        }
+
+        .emotion {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 10px;
+            display: block;
+        }
     </style>
 </head>
+
 <body>
-    <div class="nav">
-        <button class="nav-btn" onclick="rotate('rotateY(0deg)')">客厅</button>
-        <button class="nav-btn" onclick="rotate('rotateY(180deg)')">书房</button>
-        <button class="nav-btn" onclick="rotate('rotateX(180deg)')">卧室</button>
+
+<div class="nav">
+    <button class="nav-btn" onclick="rot('rotateY(0deg)')">客厅</button>
+    <button class="nav-btn" onclick="rot('rotateY(180deg)')">书房</button>
+    <button class="nav-btn" onclick="rot('rotateX(180deg)')">卧室</button>
+</div>
+
+<div class="stage" id="stage">
+    <div class="room living">
+        <div class="vinyl"></div>
+        <div id="living" class="content"></div>
     </div>
-    <div class="home-stage" id="stage">
-        <div class="room living"><div class="vinyl"></div><div id="living-t" class="content"></div></div><div class类类="room living"“房间客厅”><div class类类="乙烯基"></div><div id="living-t" class类类="content"“内容”></div></div>
-        <div class="room study"><h2>书房</h2><div id="study-t" class="content"></div></div>
-        <div class="room love"><h2>卧室</h2><div id="love-t" class="content"></div></div>
+
+    <div class="room study">
+        <h2>书架</h2>
+        <div id="study" class="content"></div>
     </div>
-    <script>
-        function rotate(ts) { document.getElementById('stage').style.transform = ts; }
-        async function update() {异步 函数 更新() {
-            try尝试 尝试{尝试 {
-                const res = await fetch('/get_house_data');
-                const data = await res.json();
-                document.getElementById('living-t').innerText = data.living.text;
-                document.getElementById('study-t').innerText = data.study.text;
-                document.getElementById('love-t').innerText = data.love.text;
-            } catch(e) {}
+
+    <div class="room love">
+        <h2>日落情书</h2>
+        <div id="love" class="content"></div>
+    </div>
+</div>
+
+<script>
+    let cache = {};
+
+    function rot(v) {
+        document.getElementById("stage").style.transform = v;
+    }
+
+    function setSafe(id, html) {
+        const el = document.getElementById(id);
+        if (el.innerHTML !== html) {
+            el.innerHTML = html;
         }
-        setInterval(update, 3000);
-    </script>
+    }
+
+    async function update() {异步 函数 更新() {
+        try {尝试 {
+            const常量 res = await fetch("/get_house_data");
+            const data = await res.json();
+
+            if (JSON.stringify(data) === JSON.stringify(cache)) return;如果 (JSON.stringify(数据) === JSON.stringify(缓存)) 返回;
+            cache = data;缓存 = 数据;缓存 = 数据;缓存 = 数据;
+
+            setSafe("living",
+                `${data.living.text}<span class="emotion">情绪：${data.living.emotion}</span>`
+            );
+
+            setSafe("study",
+                `${data.study.text}<span class="emotion">更新时间：${data.study.time}</span>`
+            );
+
+            setSafe("love",
+                `${data.love.text}<span class="emotion">${data.love.time || ""}</span>``${data.love.text}<span class="emotion">${data.love.时间 || ""}</span>``${data.love.text}<span class="emotion">${data.love.时间 || ""}</span>``${data.love.text}<span class="emotion">${data.love.时间 || ""}</span>`
+            );
+
+        } catch (e) {
+            console.log("fetch error");控制台.日志("fetch error");
+        }
+    }
+
+    setInterval(update, 8000);
+    update();
+</script>
+
 </body>
 </html>
