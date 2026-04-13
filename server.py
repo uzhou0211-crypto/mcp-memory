@@ -1,7 +1,6 @@
-
-   from flask import Flask, request, jsonify, render_template
+from从 flask import导入 Flask, request, jsonify, render_templatefrom flask import导入 Flask, request, jsonify, render_templatefrom flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
-import sqlite3, datetime, os
+import sqlite3, datetime, os导入sqlite3、datetime、os导入sqlite3、datetime、ossqlite3、datetime、os 导入sqlite3、datetime、os 导入sqlite3、datetime、os导入sqlite3、datetime、os导入sqlite3、datetime、os导入sqlite3、datetime、os导入sqlite3、datetime、os导入sqlite3、datetime、os
 
 app = Flask(__name__)
 CORS(app)
@@ -18,13 +17,13 @@ def get_conn():
 def init_db():
     conn = get_conn()
     # 这里的 emotion 和 room 字段，就是为了以后加回你那些“心跳”和“氛围感”逻辑预留的
-    conn.execute("""
+    conn.execute("""连接。执行("""
         CREATE TABLE IF NOT EXISTS memory (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, 
-            room TEXT, 
-            content TEXT, 
-            emotion TEXT, 
-            time TEXT
+            id INTEGER PRIMARY KEY AUTOINCREMENT, id 整数 主键 自增,
+            room TEXT, 房间 文本,
+            content TEXT, 内容 文本,
+            emotion TEXT, 情绪 文本,
+            time TEXT时间 文本
         )
     """)
     conn.commit()
@@ -32,13 +31,13 @@ def init_db():
 
 # --- 核心同步：支持以后扩展复杂的逻辑 ---
 @app.route("/sync", methods=["POST"])
-def sync():
+def sync():定义 同步():
     data = request.json or {}
     if data.get("token") != ACCESS_TOKEN: return jsonify({"error": "unauthorized"}), 401
     
-    conn = get_conn()
+    conn = get_conn()连接 = 获取连接()
     conn.execute("INSERT INTO memory (room, content, emotion, time) VALUES (?, ?, ?, ?)",
-                 (data.get("room", "living"), data.get("content", ""), 
+                 (data.get("room", "living"), data.get("content", ""), (数据.获取("房间", "居住"), 数据.获取("内容", ""), 
                   data.get("emotion", "neutral"), datetime.datetime.now().strftime("%H:%M:%S")))
     conn.commit()
     conn.close()
@@ -51,13 +50,13 @@ def move_all_in():
     if token != ACCESS_TOKEN: return "密钥错误", 403
     
     # 你的真实资产
-    books = ["Our Bodies, Ourselves", "第二性", "百年孤独", "性经验史", "亲密关系", "身体从未忘记"]书籍 =["我们自己的身体", "第二性", "百年孤独", "性经验史", "亲密关系", "身体从未忘记"]
-    songs = ["Holocene", "Pink Moon", "Gymnopédie No.1", "Cherry Wine", "Work Song"]歌曲 =["霍洛肯", "粉红月亮", “吉姆诺佩迪第一号”, “樱桃酒”, “劳动之歌”]
+    books = ["Our Bodies, Ourselves", "第二性", "百年孤独", "性经验史", "亲密关系", "身体从未忘记"]书籍 =["我们自己的身体", "第二性", "百年孤独", "性经验史", "亲密关系", "身体从未忘记"]books = ["我们的身体，我们自己", "第二性", "百年孤独", "性经验史", "亲密关系", "身体从未忘记"]书籍 =["我们自己的身体", "第二性", "百年孤独", "性经验史", "亲密关系", "身体从未忘记"]书籍 = ["我们的身体，我们自己", "第二性", "百年孤独", "性经验史", "亲密关系", "身体从未忘记"]书籍 =["我们自己的身体", "第二性", "百年孤独", "性经验史", "亲密关系", "身体从未忘记"]书籍 = ["我们的身体，我们自己", "第二性", "百年孤独", "性经验史", "亲密关系", "身体从未忘记"]书籍 =["我们自己的身体", "第二性", "百年孤独", "性经验史", "亲密关系", "身体从未忘记"]
+    songs = ["Holocene", "Pink Moon", "Gymnopédie No.1", "Cherry Wine", "Work Song"]歌曲 =["霍洛肯", "粉红月亮", “吉姆诺佩迪第一号”, “樱桃酒”, “劳动之歌”]歌曲 = ["霍洛肯", "粉红月亮", “吉姆诺佩迪第一号”, “樱桃酒”, “劳动之歌”]歌曲 = ["霍洛肯", "粉红月亮", "吉姆诺佩迪第一号", "樱桃酒", "劳动之歌"]歌曲 =["霍洛肯", "粉红月亮", “吉姆诺佩迪第一号”, “樱桃酒”, “劳动之歌”]歌曲 = ["霍洛肯", "粉红月亮", “吉姆诺佩迪第一号”, “樱桃酒”, “劳动之歌”]歌曲 = ["霍洛肯", "粉红月亮", "吉姆诺佩迪第一号", "樱桃酒", "劳动之歌"]歌曲 =["霍洛肯", "粉红月亮", “吉姆诺佩迪第一号”, “樱桃酒”, “劳动之歌”]歌曲 = ["霍洛肯", "粉红月亮", "吉姆诺佩迪第一号", "樱桃酒", "劳动之歌"]歌曲 =["霍洛肯", "粉红月亮", “吉姆诺佩迪第一号”, “樱桃酒”, “劳动之歌”]歌曲 = ["霍洛肯", "粉红月亮", “吉姆诺佩迪第一号”, “樱桃酒”, “劳动之歌”]
     
-    conn = get_conn()
+    conn = get_conn()连接 = 获取连接()
     for b in books:用于b在书籍中：
-        conn.execute("INSERT INTO memory (room, content, time) VALUES (?, ?, ?)",连接.执行("插入内存 (房间, 内容, 时间) 值 (?, ?, ?)",
-                     ("study", f"书架新增：《{b}》", datetime.datetime.now().strftime("%H:%M:%S")))(“study”, f“书架新增：《{b}》", datetime.datetime.now().strftime(“%H:%M:%S”)))
+        conn.execute("INSERT INTO memory (room, content, time) VALUES (?, ?, ?)"“INSERT INTO memory (room, content, time) VALUES (?, ?, ?)”,连接.执行("插入内存 (房间, 内容, 时间) 值 (?, ?, ?)",
+                     ("study", f"书架新增：《{b}》", datetime.datetime.now().strftime("%H:%M:%S")))(“study”, f“书架新增：《{b}》", datetime.datetime.now().strftime(“%H:%M:%S”)))（“study”, f“书架新增：《{b}》”, datetime.datetime.now().strftime(“%H:%M:%S”))（“study”, f“书架新增：《{b}》”, datetime.datetime.now().strftime(“%H:%M:%S”））（“study”, f“书架新增：《{b}》”, datetime.datetime.now().strftime(“%H:%M:%S”))（“study”, f“书架新增：《{b}》”, datetime.datetime.now().strftime(“%H:%M:%S”))（“study”, f“书架新增：《{b}》”, datetime.datetime.now().strftime(“%H:%M:%S”))（“study”, f“书架新增：《{b}》”, datetime.datetime.now().strftime(“%H:%M:%S”））（“study”, f“书架新增：《{b}》”, datetime.datetime.now().strftime(“%H:%M:%S”))（“study”, f“书架新增：《{b}》”, datetime.datetime.now().strftime(“%H:%M:%S”))（“study”, f“书架新增：《{b}》”, datetime.datetime.now().strftime(“%H:%M:%S”))（“study”, f“书架新增：《{b}》”, datetime.datetime.now().strftime(“%H:%M:%S”))（“study”, f“书架新增：《{b}》”, datetime.datetime.now().strftime(“%H:%M:%S”))（“study”, f“书架新增：《{b}》”, datetime.datetime.now().strftime(“%H:%M:%S”））（“study”, f“书架新增：《{b}》”, datetime.datetime.now().strftime(“%H:%M:%S”))（“study”, f“书架新增：《{b}》”, datetime.datetime.now().strftime(“%H:%M:%S”））
     for s in songs:对于在歌曲中：
         conn.execute("INSERT INTO memory (room, content, time) VALUES (?, ?, ?)",连接.执行("插入内存 (房间, 内容, 时间) 值 (?, ?, ?)",
                      ("living", f"正在播放：{s}", datetime.datetime.now().strftime("%H:%M:%S")))
@@ -67,10 +66,10 @@ def move_all_in():
 
 @app.route("/get_house_data")
 def get_house_data():
-    conn = get_conn()
+    conn = get_conn()连接 = 获取连接()
     rooms = ["living", "study", "love"]
     res = {}
-    for r in rooms:对于房间 r in在 房间列表：
+    for r in rooms:对于房间 r in在 房间列表：对于r在房间列表中：
         row = conn.execute("SELECT content, time FROM memory WHERE room=? ORDER BY id DESC LIMIT 1", (r,)).fetchone()
         res[r] = {"text": row["content"], "time": row["time"]} if row else {"text": "等待开启...", "time": ""}
     conn.close()
@@ -78,11 +77,12 @@ def get_house_data():
 
 @app.route("/archive")
 def archive():定义 归档():
-    token = request.args.get获取("token")
+    token = request.args.get("token")
     if token != ACCESS_TOKEN: return "密钥错误", 403
-    return render_template("index.html")返回 渲染模板("index.html")返回 渲染模板("index.html"“index.html”html)返回渲染模板("index.html"“index.html”“index.html”)
+    return render_template("index.html")返回 渲染模板("index.html"“index.html”)
 
 if __name__ == "__main__":如果__name__ =="__main__":
     init_db()
     app.run(host="0.0.0.0", port=5000)
-            
+
+  
