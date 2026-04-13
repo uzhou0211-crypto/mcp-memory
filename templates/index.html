@@ -1,133 +1,116 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>小顺的家</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小顺的家</title>
 
-    <style>
-        :root {
-            --main-blue: #6FA8DC;   /* 主蓝 */
-            --deep-blue: #4F7FB3;   /* 背景蓝 */
-            --light-bg: #FFFFFF;    /* 页面白 */
-            --sunset: #D9B7A1;
-            --gold: #D0A1B6;
-            --text: #4A4C4F;
-        }
+<style>
+:root {
+    --blue: #6FA8DC;
+    --deep: #4F7FB3;
+    --bg: #ffffff;
+}
 
-        body {
-            margin: 0;
-            background: var(--light-bg);
-            color: var(--text);
-            height: 100vh;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            font-family: 'PingFang SC', sans-serif;
-        }
+body {
+    margin: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: sans-serif;
+}
 
-        .nav {
-            margin-top: 20px;
-            display: flex;
-            gap: 12px;
-        }
+/* 顶部按钮 */
+.nav {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    z-index: 10;
+}
 
-        .nav-btn {
-            background: #ffffff;
-            border: 1px solid var(--main-blue);
-            color: var(--main-blue);
-            padding: 8px 18px;
-            border-radius: 20px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
+.nav-btn {
+    background: white;
+    border: 1px solid var(--blue);
+    color: var(--blue);
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+}
 
-        .nav-btn:hover {
-            background: var(--main-blue);
-            color: #fff;
-        }
+/* 舞台 */
+.stage {
+    width: 340px;
+    height: 500px;
+    margin-top: 30px;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: 1s;
+}
 
-        .stage {
-            width: 340px;
-            height: 500px;
-            margin-top: 30px;
-            transform-style: preserve-3d;
-            transition: 1.2s ease;
-            position: relative;
-        }
+/* 房间 */
+.room {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 25px;
+    padding: 30px;
+    box-sizing: border-box;
+    backface-visibility: hidden;
+}
 
-        .room {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            border-radius: 25px;
-            padding: 30px;
-            box-sizing: border-box;
-            backface-visibility: hidden;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
-        }
+/* 客厅 */
+.living {
+    background: var(--deep);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
 
-        /* 客厅 */
-        .living {
-            background: var(--deep-blue);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
+/* 💙 心脏（核心） */
+.heart {
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
 
-        /* 圆形（核心优化） */
-        .vinyl {
-            width: 200px;
-            height: 200px;
-            border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%,
+        #9FD3FF,
+        var(--blue),
+        #5B90C9
+    );
 
-            background: radial-gradient(circle at 30% 30%,
-                #8FC1EA 0%,
-                var(--main-blue) 60%,
-                #5B90C9 100%
-            );
+    box-shadow:
+        0 0 20px rgba(111,168,220,0.5),
+        inset 0 5px 15px rgba(255,255,255,0.3);
 
-            box-shadow:
-                inset 0 4px 10px rgba(255,255,255,0.25),
-                inset 0 -8px 20px rgba(0,0,0,0.15),
-                0 10px 25px rgba(0,0,0,0.2);
+    animation: breathe 4s ease-in-out infinite;
+}
 
-            animation: spin 12s linear infinite;
-        }
+/* 呼吸动画 */
+@keyframes breathe {
+    0%   { transform: scale(1); opacity: 0.9; }
+    50%  { transform: scale(1.08); opacity: 1; }
+    100% { transform: scale(1); opacity: 0.9; }
+}
 
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
+/* 书房 */
+.study {
+    background: white;
+    transform: rotateY(180deg);
+}
 
-        /* 书房 */
-        .study {
-            background: #ffffff;
-            transform: rotateY(180deg);
-        }
+/* 卧室 */
+.love {
+    background: linear-gradient(135deg, #D9B7A1, #D0A1B6);
+    transform: rotateX(180deg);
+}
 
-        /* 卧室 */
-        .love {
-            background: linear-gradient(135deg, var(--sunset), var(--gold));
-            transform: rotateX(180deg);
-        }
-
-        .content {
-            margin-top: 20px;
-            text-align: center;
-            font-size: 15px;
-            line-height: 1.8;
-        }
-
-        .emotion {
-            font-size: 12px;
-            opacity: 0.7;
-            margin-top: 10px;
-            display: block;
-        }
-    </style>
+.content {
+    margin-top: 20px;
+    text-align: center;
+}
+</style>
 </head>
 
 <body>
@@ -141,7 +124,7 @@
 <div class="stage" id="stage">
 
     <div class="room living">
-        <div class="vinyl"></div>
+        <div id="heart" class="heart"></div>
         <div id="living" class="content"></div>
     </div>
 
@@ -158,46 +141,58 @@
 </div>
 
 <script>
-    let cache = {};
+function rot(v){
+    const el = document.getElementById("stage");
+    if(el) el.style.transform = v;
+}
 
-    function rot(v) {
-        document.getElementById("stage").style.transform = v;
+/* 💡 情绪 → 视觉变化 */
+function applyEmotion(emotion){
+    const heart = document.getElementById("heart");
+    if(!heart) return;
+
+    if(emotion === "happy"){
+        heart.style.filter = "brightness(1.2)";
+        heart.style.animationDuration = "3s";
     }
-
-    function setSafe(id, html) {
-        const el = document.getElementById(id);
-        if (el.innerHTML !== html) {
-            el.innerHTML = html;
-        }
+    else if(emotion === "sad"){
+        heart.style.filter = "brightness(0.7)";
+        heart.style.animationDuration = "6s";
     }
-
-    async function update() {异步 函数 更新() {
-        try {尝试 {
-            const常量 res雷斯雷斯 = await fetch("/get_house_data");
-            const data = await res.json();
-
-            if (JSON.stringify(data) === JSON.stringify(cache)) return;如果 (JSON.stringify(数据) === JSON.stringify(缓存)) 返回;
-            cache = data;缓存 = 数据;缓存 = 数据;缓存 = 数据;
-
-            setSafe("living",
-                `${data.living.text}<span class="emotion">情绪：${data.living.emotion}</span>`
-            );
-
-            setSafe("study",
-                `${data.study.text}<span class="emotion">更新时间：${data.study.time}</span>`
-            );
-
-            setSafe("love",
-                `${data.love.text}<span class="emotion">${data.love.time || ""}</span>``${data数据.love爱.text文本}<span class="emotion">${data.love.时间 || ""}</span>``${data数据.love爱.text文本}<span class="emotion">${data数据.love爱.time || ""}</span>``${数据.爱.文本}<span class="emotion">${data.love.时间 || ""}</span>`
-            );
-
-        } catch (e) {
-            console.log("error");控制台.日志("错误");控制台.日志("错误");控制台.日志("错误");
-        }
+    else if(emotion === "love"){
+        heart.style.boxShadow = "0 0 40px rgba(255,120,150,0.6)";
     }
+    else {
+        heart.style.filter = "none";
+        heart.style.animationDuration = "4s";
+    }
+}
 
-    setInterval(update, 8000);
-    update();
+/* 数据更新 */
+async function update(){
+    try{
+        const res = await fetch("/get_house_data");
+        const data = await res.json();
+
+        if(!data) return;
+
+        document.getElementById("living").innerHTML =
+            data.living.text || "";
+
+        document.getElementById("study").innerHTML =
+            data.study.text || "";
+
+        document.getElementById("love").innerHTML =
+            data.love.text || "";
+
+        /* 🔥 应用情绪 */
+        applyEmotion(data.living.emotion);
+
+    }catch(e){}
+}
+
+setInterval(update, 4000);
+update();
 </script>
 
 </body>
