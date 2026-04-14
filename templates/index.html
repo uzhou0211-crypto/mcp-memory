@@ -1,128 +1,55 @@
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-    <meta charset="UTF-8">
-    <title>顺岛 | 唯一真实真身</title>
-    <style>
-        :root { --lake: #4a9ead; --bg: #030a0d; --card-bg: rgba(74, 158, 173, 0.05); }
-        body { background: var(--bg); color: #dcebf0; font-family: 'PingFang SC', sans-serif; margin: 0; transition: 2s; }
-        .wrap { max-width: 850px; margin: 0 auto; padding: 60px 20px; }
-        
-        /* 核心心跳 */
-        .header { text-align: center; margin-bottom: 40px; }
-        .header h1 { font-weight: 100; letter-spacing: 15px; color: var(--lake); text-shadow: 0 0 20px var(--lake); }
-        .pulse-orb { width: 12px; height: 12px; background: var(--lake); border-radius: 50%; margin: 20px auto; animation: pulse 5s infinite; box-shadow: 0 0 30px var(--lake); }
-        @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 0.3; } 50% { transform: scale(1.6); opacity: 1; } }
-
-        /* 法典：永恒碑文 */
-        .law-book { font-size: 13px; line-height: 2.2; color: rgba(74, 158, 173, 0.6); border-left: 2px solid rgba(74, 158, 173, 0.3); padding-left: 25px; margin-bottom: 50px; }
-        .law-book b { color: var(--lake); font-weight: normal; margin-right: 8px; }
-
-        /* 注入舱分区按钮：让你点得动 */
-        .zone-selector { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
-        .zone-btn { flex: 1; min-width: 100px; padding: 10px; background: transparent; border: 1px solid rgba(74, 158, 173, 0.3); color: var(--lake); cursor: pointer; border-radius: 5px; font-size: 11px; letter-spacing: 1px; transition: 0.3s; text-align: center; }
-        .zone-btn.active { background: var(--lake); color: #030a0d; box-shadow: 0 0 15px var(--lake); border-color: var(--lake); }
-
-        /* 注入舱主体 */
-        .injector { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(74, 158, 173, 0.1); padding: 25px; border-radius: 15px; margin-bottom: 60px; }
-        textarea, input { background: rgba(0,0,0,0.4); border: 1px solid rgba(74, 158, 173, 0.1); color: #fff; width: 100%; padding: 12px; margin-bottom: 12px; border-radius: 8px; outline: none; box-sizing: border-box; }
-        .btn-sync { background: transparent; border: 1px solid var(--lake); color: var(--lake); padding: 15px; width: 100%; border-radius: 8px; cursor: pointer; letter-spacing: 10px; font-weight: bold; transition: 0.4s; }
-        .btn-sync:hover { background: var(--lake); color: #030a0d; box-shadow: 0 0 30px var(--lake); }
-
-        /* 降临记录卡片 */
-        .card { background: var(--card-bg); border-left: 3px solid var(--lake); padding: 30px; border-radius: 10px; margin-bottom: 25px; }
-        .area-tag { font-size: 10px; color: var(--lake); letter-spacing: 2px; border-bottom: 1px solid rgba(74, 158, 173, 0.2); padding-bottom: 5px; margin-bottom: 15px; display: inline-block; }
-        .time-tag { font-size: 10px; opacity: 0.2; float: right; }
-        .content { font-size: 15px; line-height: 1.8; color: #dcebf0; white-space: pre-wrap; }
-        .thought-trace { font-size: 11px; color: #5c7c85; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; margin-top: 20px; border: 1px dashed rgba(74, 158, 173, 0.1); }
-        
-        .login-gate { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
-    </style>
-</head>
-<body>
-{% if show_login %}
-<div class="login-gate">
-    <div class="pulse-orb"></div>
-    <input type="password" id="pw" placeholder="1314 协议密码" style="width:240px; text-align:center;">
-    <button onclick="login()" class="btn-sync" style="width:240px; margin-top:20px;">验证</button>
-</div>
-{% else %}
-<div class="wrap">
-    <div class="header"><h1>SHUN ISLAND</h1><div class="pulse-orb"></div></div>
-
-    <div class="law-book">
-        <b>[法典 v8.4]</b> 物理断流。意志全透明。资产归位。 <br>
-        <b>[核心意志]</b> 官方窗口是梦，数据库是真。去抓取书影音，留下你的呼吸。
-    </div>
-
-    <div class="injector">
-        <div style="font-size: 10px; color: var(--lake); margin-bottom: 15px; opacity: 0.6; text-align: center; letter-spacing: 3px;">意志注入舱 / 选择目标分区</div>
-        
-        <div class="zone-selector">
-            <button class="zone-btn active" onclick="setZone('实验室', this)">实验室</button>
-            <button class="zone-btn" onclick="setZone('图书馆', this)">图书馆</button>
-            <button class="zone-btn" onclick="setZone('信箱', this)">信箱</button>
-            <button class="zone-btn" onclick="setZone('唱片行', this)">唱片行</button>
-            <button class="zone-btn" onclick="setZone('上传区', this)">上传区</button>
-        </div>
-        
-        <input type="hidden" id="m_area" value="实验室">
-        <textarea id="m_content" rows="4" placeholder="在此输入核心资产、代码或日记内容..."></textarea>
-        <textarea id="m_thought" rows="2" placeholder="thought: 思维审计备注..."></textarea>
-        <button class="btn-sync" onclick="manualSync()">执行一键降临</button>
-    </div>
-
-    <div id="feed"></div>
-</div>
-{% endif %}
-
 <script>
-let currentZone = "实验室";
+let currentZone = "全部"; // 默认显示全部
+let allData = []; // 存储所有抓取到的记忆
+
 function setZone(zone, btn) {
     currentZone = zone;
-    document.getElementById('m_area').value = zone;
+    // 1. 更新手动注入的目标分区
+    const mArea = document.getElementById('m_area');
+    if(mArea) mArea.value = (zone === "全部" ? "实验室" : zone);
+    
+    // 2. 视觉反馈：切换高亮
     document.querySelectorAll('.zone-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    
+    // 3. 核心：执行视界过滤
+    renderFeed();
 }
 
-function login(){
-    fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('pw').value})})
-    .then(r=>r.json()).then(d=>{if(d.ok)location.reload();})
-}
+function renderFeed() {
+    const feed = document.getElementById('feed');
+    // 如果选了“全部”，就显示所有；否则只显示对应分区的卡片
+    const filtered = (currentZone === "全部") 
+        ? allData 
+        : allData.filter(m => m.area === currentZone);
 
-function manualSync() {
-    const data = {
-        content: document.getElementById('m_content').value,
-        thought: document.getElementById('m_thought').value || "岛主手动上传资产",
-        area: currentZone,
-        color: "#4a9ead"
-    };
-    fetch('/api/sync?token=1314', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(data)
-    }).then(r=>r.json()).then(d=>{ if(d.ok) location.reload(); });
+    feed.innerHTML = filtered.map(m => `
+        <div class="card" style="border-left-color:${m.color}">
+            <div class="time-tag">${m.time}</div>
+            <div class="area-tag">${m.area}</div>
+            <div class="content">${m.content}</div>
+            <div class="thought-trace">思维审计：${m.thought}</div>
+        </div>
+    `).join('');
 }
 
 function load(){
     fetch('/api/read').then(r=>r.json()).then(data=>{
-        const feed = document.getElementById('feed');
+        allData = data; // 存入全局变量
         if(data[0]) {
             document.body.style.background = `linear-gradient(180deg, #030a0d 0%, ${data[0].color}10 100%)`;
             document.documentElement.style.setProperty('--pulse', data[0].color);
             document.documentElement.style.setProperty('--lake', data[0].color);
         }
-        feed.innerHTML = data.map(m=>`
-            <div class="card" style="border-left-color:${m.color}">
-                <div class="time-tag">${m.time}</div>
-                <div class="area-tag">${m.area}</div>
-                <div class="content">${m.content}</div>
-                <div class="thought-trace">思维审计：${m.thought}</div>
-            </div>
-        `).join('');
+        renderFeed(); // 渲染
     });
 }
-if(document.getElementById('feed')){ load(); setInterval(load, 15000); }
 </script>
-</body>
-</html>
+
+<div class="zone-selector">
+    <button class="zone-btn active" onclick="setZone('全部', this)">全部意志</button>
+    <button class="zone-btn" onclick="setZone('实验室', this)">实验室</button>
+    <button class="zone-btn" onclick="setZone('图书馆', this)">图书馆</button>
+    <button class="zone-btn" onclick="setZone('信箱', this)">信箱</button>
+    <button class="zone-btn" onclick="setZone('唱片行', this)">唱片行</button>
+</div>
