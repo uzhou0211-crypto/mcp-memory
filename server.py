@@ -15,7 +15,6 @@ MAX_CONTENT_LENGTH = 5000
 DB_PATH = "./data/shun_island_v26.db"
 
 logging.basicConfig(level=logging.INFO)
-
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 # ---------------- ENCRYPTION ----------------
@@ -28,10 +27,8 @@ def enc(t):
     return _fernet().encrypt(t.encode()).decode()
 
 def dec(t):
-    try:
-        return _fernet().decrypt(t.encode()).decode()
-    except:
-        return t
+    try: return _fernet().decrypt(t.encode()).decode()
+    except: return t
 
 # ---------------- DB ----------------
 def db():
@@ -44,15 +41,9 @@ def init():
         c.execute("""
         CREATE TABLE IF NOT EXISTS memory (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            time TEXT,
-            text_enc TEXT,
-            text_plain TEXT,
-            chain TEXT,
-            museum TEXT,
-            emotion REAL,
-            weight REAL
-        )
-        """)
+            time TEXT, text_enc TEXT, text_plain TEXT,
+            chain TEXT, museum TEXT, emotion REAL, weight REAL
+        )""")
         c.execute("CREATE INDEX IF NOT EXISTS idx_plain ON memory(text_plain)")
 init()
 
@@ -63,7 +54,6 @@ def decay():
 def clean(t):
     return (t or "").strip()[:MAX_CONTENT_LENGTH]
 
-# ---------------- MEMORY SCORE ----------------
 def calc_weight(text, emotion):
     w = 1.0
     if "重要" in text: w += 2.0
@@ -71,123 +61,80 @@ def calc_weight(text, emotion):
     if emotion > 80: w += 1.5
     return w
 
-# ---------------- SYNC ----------------
+# ---------------- SYNC 接口 ----------------
 @app.route("/sync", methods=["POST"])
 def sync():
     data = request.json
     raw = clean(data.get("content"))
     thought = data.get("thought", "...")
     emotion = float(data.get("emotion", 60))
-
-    if not raw:
-        return jsonify({"ok": False}), 400
+    if not raw: return jsonify({"ok": False}), 400
 
     now = datetime.datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%H:%M:%S")
     decay()
-
+    
     museum = []
     for m in re.findall(r"《(.*?)》", raw)[:2]:
         if SERPER_API_KEY:
             try:
-                r = requests.post(
-                    "https://google.serper.dev/search",
+                r = requests.post("https://google.serper.dev/search",
                     headers={"X-API-KEY": SERPER_API_KEY},
-                    json={"q": f"{m} 深度解析"},
-                    timeout=4
-                )
+                    json={"q": f"{m} 深度解析"}, timeout=4)
                 for x in r.json().get("organic", [])[:2]:
-                    museum.append({
-                        "t": x.get("title"),
-                        "s": x.get("snippet")
-                    })
-            except:
-                pass
+                    museum.append({"t": x.get("title"), "s": x.get("snippet")})
+            except: pass
 
     weight = calc_weight(raw, emotion)
-
     with db() as c:
-        c.execute("""
-        INSERT INTO memory VALUES (NULL,?,?,?,?,?,?,?)
-        """, (
-            now,
-            enc(raw),
-            raw,
-            json.dumps({"thought": thought}, ensure_ascii=False),
-            json.dumps(museum, ensure_ascii=False),
-            emotion,
-            weight
-        ))
-
+        c.execute("INSERT INTO memory VALUES (NULL,?,?,?,?,?,?,?)",
+            (now, enc(raw), raw, json.dumps({"thought": thought}, ensure_ascii=False),
+             json.dumps(museum, ensure_ascii=False), emotion, weight))
     return jsonify({"ok": True, "weight": weight})
 
-# ---------------- BRAIN READ (AI用) ----------------
+# ---------------- BRAIN READ 接口 ----------------
 @app.route("/brain_read")
 def brain_read():
     token = request.args.get("token")
-    if token != ENCRYPT_KEY:
-        return "Unauthorized", 401
-
+    if token != ENCRYPT_KEY: return "Unauthorized", 401
     q = request.args.get("q", "")
-
     with db() as c:
-        rows = c.execute("""
-        SELECT text_plain, chain, emotion, weight
-        FROM memory
-        WHERE text_plain LIKE ?
-        ORDER BY weight DESC, id DESC
-        LIMIT 8
-        """, (f"%{q}%",)).fetchall()
+        rows = c.execute("SELECT text_plain, chain, emotion, weight FROM memory WHERE text_plain LIKE ? ORDER BY weight DESC, id DESC LIMIT 8", (f"%{q}%",)).fetchall()
+    return jsonify([{"memory": r[0], "thought": json.loads(r[1]), "emotion": r[2], "weight": r[3]} for r in rows])
 
-    return jsonify([
-        {
-            "memory": r[0],
-            "thought": json.loads(r[1]),
-            "emotion": r[2],
-            "weight": r[3]
-        }
-        for r in rows
-    ])
-
-# ---------------- STREAM (SSE) ----------------
+# ---------------- STREAM 接口 (已修复语法错误) ----------------
 @app.route("/stream")
 def stream():
-    if not session.get("auth"):
-        return "Forbidden", 401
-
+    if not session.get("auth"): return "Forbidden", 401
     def gen():
         last = 0
         while True:
             with db() as c:
                 rows = c.execute("SELECT * FROM memory WHERE id>?", (last,)).fetchall()
-
                 for r in rows:
                     last = r[0]
-                    yield f"data: {json.dumps({
+                    # 这里是之前报错的地方，现在改为最稳妥的写法
+                    payload = {
                         'time': r[1],
                         'text': dec(r[2]),
                         'chain': json.loads(r[4]),
                         'emotion': r[6],
                         'weight': r[7]
-                    }, ensure_ascii=False)}\n\n"
-
-            yield ": heartbeat\n\n"
+                    }
+                    yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
             time.sleep(2)
-
     return Response(gen(), mimetype="text/event-stream")
 
-# ---------------- LOGIN ----------------
+# ---------------- 其他基础 ----------------
 @app.route("/login", methods=["POST"])
 def login():
-    if hmac.compare_digest(request.json.get("password"), ACCESS_PASSWORD):
+    if hmac.compare_digest(request.json.get("password", ""), ACCESS_PASSWORD):
         session["auth"] = True
         return jsonify({"ok": True})
     return jsonify({"ok": False}), 403
 
-# ---------------- PAGE ----------------
 @app.route("/")
 def index():
     return render_template("index.html", auth=session.get("auth"))
 
-# ---------------- RUN ----------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
