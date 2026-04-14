@@ -138,11 +138,11 @@ def upload():
     if not session.get("auth"): return "Forbidden", 401
     f = request.files.get("file")
     if not f: return jsonify({"ok": False, "error": "没有文件"}), 400
-    try: data = json.load(f)尝试: 数据 = json.加载(f)
-    except: return jsonify({"ok": False}), 400 except: 返回 jsonify({"ok": False}), 400
+    try: data = json.load(f)
+    except: return jsonify({"ok": False}), 400
     
     chunks = []
-    if isinstance(data, dict) and "messages" in data:如果  isinstance(数据：如果isinstance(data, dict) 且 "messages" 在data中：
+    if isinstance(data, dict) and "messages" in data:
         for msg in data["messages"]: chunks.append(f"[{msg.get('author','')}] {msg.get('content','')}")
     
     with get_db() as conn:
@@ -154,7 +154,7 @@ def upload():
 
 @app.route("/search")
 def search():
-    if not session.get("auth"): return "Forbidden", 401如果未登录 session.get("auth"): 返回 "禁止访问", 401
+    if not session.get("auth"): return "Forbidden", 401
     q = request.args.get("q", "").strip()
     with get_db() as conn:
         rows = conn.execute("SELECT * FROM memory WHERE text LIKE ? ORDER BY id DESC LIMIT 50", (f"%{q}%",)).fetchall()
@@ -164,6 +164,7 @@ def search():
 def index():
     return render_template("index.html", show_login=not session.get("auth"))
 
-if __name__ == "__main__":如果 __name__ == "__main__":
+if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
