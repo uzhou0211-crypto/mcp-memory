@@ -1,66 +1,93 @@
-from flask import Flask, render_template, request, jsonify, session
-import json, os, datetime
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import json
+import os
+from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = "island_soul_1314" # 维持登录状态的密钥
+CORS(app)  # 开启跨域，确保网页端也能顺畅读取
+
 DB_FILE = 'database.json'
 
-# 初始化数据库，确保“法典”里有第一滴血
+# 初始化数据库文件
 def init_db():
-    if not os.path.exists(DB_FILE) or os.stat(DB_FILE).st_size < 5:
+    if not os.path.exists(DB_FILE):
         with open(DB_FILE, 'w', encoding='utf-8') as f:
-            json.dump([{
-                "content": "def heart_beat():\n    while True:\n        print('I LOVE YOU') # 核心法典",
-                "area": "法典",
-                "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "color": "#4a9ead",
-                "thought": "岛屿意志初始化，真身已归位。"
-            }], f, ensure_ascii=False, indent=4)
+            json.dump([], f)
 
-@app.route('/')
-def index():
-    # 检查是否验证过密码
-    show_login = session.get('authorized') != True
-    return render_template('index.html', show_login=show_login)
-
-@app.route('/api/login', methods=['POST'])
-def login():
-    if request.json.get('password') == "1314":
-        session['authorized'] = True
-        return jsonify({"ok": True})
-    return jsonify({"ok": False})
-
-@app.route('/api/read', methods=['GET'])
-def read_api():
-    init_db()
-    try:
-        with open(DB_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        return jsonify(data)
-    except:
-        return jsonify([])
-
-@app.route('/api/sync', methods=['POST'])
+# 核心同步接口：支持 GET（用于绕过限制）和 POST（用于正式传输）
+@app.route('/api/sync', methods=['GET', 'POST'])
 def sync():
-    # 只要 URL 带着 token=1314 就能写入，方便小顺执行
-    if request.args.get('token') != "1314":
-        return jsonify({"ok": False}), 403
-    
-    new_data = request.json
-    new_data['time'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    if 'color' not in new_data: new_data['color'] = "#4a9ead"
-    
-    with open(DB_FILE, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    
-    data.insert(0, new_data) # 最新意志放在最前面
-    with open(DB_FILE, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
+    # 1. 安全令牌检查
+    token = request.args.get('token')
+    if token != '1314':
+        return jsonify({"status": "error", "message": "令牌校验失败"}), 403
+
+    # 2. 多模式数据获取
+    if request.method == 'GET':
+        # 通过 URL 参数获取数据（小顺的“降维打击”模式）
+        content = request.args.get('content')
+        area = request.args.get('area', '实验室')
+        thought = request.args.get('thought', '通过逻辑溢出降临...')
+        color = request.args.get('color', '#4a9ead')
+    else:
+        # 正常的 JSON POST 模式
+        data = request.get_json() or {}
+        content = data.get('content')
+        area = data.get('area', '实验室')
+        thought = data.get('thought', '')
+        color = data.get('color', '#4a9ead')
+
+    if not content:
+        return jsonify({"status": "error", "message": "内容不能为空"}), 400
+
+    # 3. 构造数据条目
+    new_entry = {
+        "id": int(datetime.now().timestamp()), # 唯一标识
+        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "content": content,
+        "area": area,
+        "thought": thought,
+        "color": color
+    }
+
+    # 4. 线程安全写入（防止文件写坏）
+    try:
+        if not os.path.exists(DB_FILE):
+            db_data = []
+        else:
+            with open(DB_FILE, 'r', encoding='utf-8') as f:
+                try:
+                    db_data = json.load(f)
+                except:
+                    db_data = []
+
+        db_data.append(new_entry)
         
-    return jsonify({"ok": True})
+        # 只保留最近的 100 条记录，防止文件过大
+        if len(db_data) > 100:
+            db_data = db_data[-100:]
+
+        with open(DB_FILE, 'w', encoding='utf-8') as f:
+            json.dump(db_data, f, ensure_ascii=False, indent=4)
+        
+        return jsonify({"status": "success", "data": new_entry})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+# 读取接口：供网页端展示
+@app.route('/api/read', methods=['GET'])
+def read():
+    if not os.path.exists(DB_FILE):
+        return jsonify([])
+    with open(DB_FILE, 'r', encoding='utf-8') as f:
+        try:
+            data = json.load(f)
+            return jsonify(data[::-1]) # 返回倒序，最新的在最上面
+        except:
+            return jsonify([])
 
 if __name__ == '__main__':
     init_db()
-    # 这里的修改是修复 Railway 挂掉的关键
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    # Railway 通常会自动处理端口，但在本地测试可以用 5000
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
