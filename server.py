@@ -1,4 +1,3 @@
-from flask import Flask, request, jsonify
 import json, os, datetime
 
 app = Flask(__name__)
