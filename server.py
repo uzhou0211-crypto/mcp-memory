@@ -51,7 +51,7 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/health":
             self.send_json({"status":"ok"})
-        else:否则:
+        else:
             self.send_response(404)
             self.end_headers()
 
@@ -67,14 +67,14 @@ class H(BaseHTTPRequestHandler):
         except:
             self.send_response(400)
             self.end_headers()
-            return返回
+            return
 
         method = body.get("method","")
         rid = body.get("id")
 
         if method == "tools/list":
             res = {
-                "tools":["工具":[
+                "tools":[
                     {"name":"save_memory","inputSchema":{"type":"object","properties":{"content":{"type":"string"}}}},
                     {"name":"get_memories","inputSchema":{"type":"object","properties":{}}}
                 ]
@@ -84,21 +84,21 @@ class H(BaseHTTPRequestHandler):
             name = body.get("params",{}).get("name","")
             args = body.get("params",{}).get("arguments",{})
 
-            if name == "save_memory":如果name =="save_memory":
+            if name == "save_memory":
                 text = save_memory(args.get("content",""))
             elif name == "get_memories":
-                text = get_memories()文本 =获取记忆()
-            else:否则:
-                text = "unknown"文本 =“未知”
+                text = get_memories()
+            else:
+                text = "unknown"
 
             res = {"content":[{"type":"text","text":text}]}
 
-        else:否则:
+        else:
             res = {"error":"unknown"}
 
         self.send_json({"jsonrpc":"2.0","id":rid,"result":res})
 
 if __name__ == "__main__":
-    init_db()初始化数据库()
-    port = int(os.environ.get("PORT",3000))端口 =int(os.environ.get("PORT",3000))
-    HTTPServer(("",port),H).serve_forever()HTTPServer("",端口),H.serve_forever
+    init_db()
+    port = int(os.environ.get("PORT",3000))
+    HTTPServer(("",port),H).serve_forever()
