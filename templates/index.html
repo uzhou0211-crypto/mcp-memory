@@ -1,186 +1,226 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SHUN ISLAND | 顺岛</title>
-    <style>
-        :root {
-            --neon-cyan: #4dcad2;
-            --deep-bg: #03080e;
-            --card-bg: #0a141d;
-            --border-gray: #1a2a35;
-        }
+<meta charset="UTF-8">
+<title>✦ SHUN ISLAND ✦ V17 CORE</title>
 
-        body {
-            background-color: var(--deep-bg);
-            color: #ffffff;
-            font-family: 'PingFang SC', 'Microsoft YaHei', monospace;
-            margin: 0; padding: 40px 20px;
-            display: flex; flex-direction: column; align-items: center;
-        }
+<style>
+:root{
+    --neon-pink: #ff00ff;
+    --neon-cyan: #00ffff;
+    --neon-gold: #ffcc00;
+    --deep-bg: #0d0221;
+    --glass: rgba(20, 0, 40, 0.6);
+}
 
-        .logo {
-            font-size: 36px; letter-spacing: 12px; color: var(--neon-cyan);
-            margin-bottom: 30px; opacity: 0.8; font-weight: 300;
-        }
+body{
+    margin:0;
+    background: radial-gradient(circle at center, #1a0b35 0%, #0d0221 100%);
+    color: #fff;
+    font-family: 'Courier New', 'PingFang SC', monospace;
+    height: 100vh;
+    overflow: hidden;
+}
 
-        /* 脉冲圆点 */
-        .pulse-dot {
-            width: 12px; height: 12px; background: var(--neon-cyan);
-            border-radius: 50%; margin-bottom: 40px;
-            box-shadow: 0 0 15px var(--neon-cyan);
-            animation: pulse-ring 2s infinite;
-        }
+/* ===== TOP ===== */
+#topbar{
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    border-bottom: 2px solid var(--neon-cyan);
+    box-shadow: 0 0 15px rgba(0,255,255,0.5);
+    background: rgba(0,0,0,0.5);
+}
 
-        @keyframes pulse-ring { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.4; } 100% { transform: scale(1); opacity: 1; } }
+.logo{
+    color: var(--neon-cyan);
+    font-weight: bold;
+    font-size: 20px;
+    letter-spacing: 5px;
+    text-shadow: 0 0 10px var(--neon-cyan);
+}
 
-        /* 导航菜单 */
-        .nav-container {
-            display: flex; gap: 10px; margin-bottom: 30px; width: 100%; max-width: 800px;
-        }
+/* ===== MAIN ===== */
+#main{
+    display: flex;
+    height: calc(100vh - 60px);
+    padding: 15px;
+    gap: 15px;
+    box-sizing: border-box;
+}
 
-        .nav-item {
-            flex: 1; height: 40px; border: 1px solid var(--border-gray);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 14px; cursor: pointer; transition: 0.3s;
-            background: rgba(255,255,255,0.02); color: rgba(255,255,255,0.6);
-        }
+.panel{
+    flex: 1;
+    background: var(--glass);
+    border: 1px solid rgba(255, 0, 255, 0.3);
+    border-radius: 4px;
+    padding: 15px;
+    overflow: auto;
+    backdrop-filter: blur(10px);
+    display: flex; flex-direction: column;
+}
 
-        .nav-item.active {
-            background: rgba(77, 202, 210, 0.2); border-color: var(--neon-cyan); color: var(--neon-cyan);
-        }
+.title{
+    font-size: 14px;
+    color: var(--neon-pink);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--neon-pink);
+    padding-bottom: 5px;
+}
 
-        /* 核心代码区 */
-        .core-box {
-            width: 100%; max-width: 800px; background: var(--card-bg);
-            border: 1px solid var(--border-gray); border-radius: 8px;
-            padding: 30px; margin-bottom: 20px; box-sizing: border-box;
-        }
+/* ===== 核心：我爱你代码行 (LOVE CODE) ===== */
+.love-code-line {
+    font-size: 12px;
+    color: var(--neon-pink);
+    margin-bottom: 8px;
+    text-align: center;
+    letter-spacing: 2px;
+    text-shadow: 0 0 5px var(--neon-pink);
+    animation: pulse 2s infinite;
+    background: rgba(255, 0, 255, 0.1);
+    padding: 4px;
+    border: 1px dashed var(--neon-pink);
+}
 
-        pre {
-            color: #8899a6; font-family: 'Consolas', monospace; margin: 0; line-height: 1.5;
-        }
+@keyframes pulse {
+    0% { opacity: 0.6; box-shadow: 0 0 2px var(--neon-pink); }
+    50% { opacity: 1; box-shadow: 0 0 10px var(--neon-pink); }
+    100% { opacity: 0.6; box-shadow: 0 0 2px var(--neon-pink); }
+}
 
-        .code-keyword { color: var(--neon-cyan); }
-        .code-string { color: #f0f0f0; }
+/* ===== CHAT/INPUT ===== */
+#chat { flex:1; overflow:auto; margin-bottom: 10px;}
 
-        /* 动态列表 */
-        #log-list {
-            width: 100%; max-width: 800px; display: flex; flex-direction: column; gap: 15px;
-        }
+.input-area { flex-shrink: 0; }
 
-        .log-entry {
-            font-size: 13px; color: #8899a6; border-left: 2px solid var(--neon-cyan);
-            padding-left: 15px; margin-top: 20px;
-        }
+.input-group { display: flex; gap: 5px; }
 
-        /* 输入区 */
-        .input-container {
-            width: 100%; max-width: 800px; margin-top: 30px;
-        }
+input{
+    flex: 1;
+    padding: 8px;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    font-family: inherit;
+}
 
-        textarea {
-            width: 100%; height: 100px; background: rgba(0,0,0,0.3);
-            border: 1px solid var(--border-gray); border-radius: 4px;
-            color: #fff; padding: 15px; box-sizing: border-box; resize: none;
-            outline: none; margin-bottom: 15px;
-        }
+button{
+    padding: 8px 15px;
+    background: transparent;
+    border: 1px solid var(--neon-gold);
+    color: var(--neon-gold);
+    cursor: pointer;
+    font-family: inherit;
+}
 
-        .submit-btn {
-            width: 100%; height: 45px; border: 1px solid var(--neon-cyan);
-            background: rgba(77, 202, 210, 0.05); color: var(--neon-cyan);
-            letter-spacing: 5px; cursor: pointer; transition: 0.3s;
-        }
+button:hover{ background: var(--neon-gold); color: #000; }
 
-        .submit-btn:hover { background: var(--neon-cyan); color: #000; }
-    </style>
+/* ===== CARD ===== */
+.card{
+    margin: 8px 0;
+    padding: 8px;
+    border-left: 3px solid var(--neon-pink);
+    background: rgba(255,255,255,0.03);
+}
+
+/* scrollbar */
+::-webkit-scrollbar{width:6px;}
+::-webkit-scrollbar-thumb{background: var(--neon-pink);}
+</style>
 </head>
+
 <body>
 
-    <div class="logo">SHUN ISLAND</div>
-    <div class="pulse-dot"></div>
+<div id="topbar">
+    <div class="logo">✦ SHUN ISLAND ✦</div>
+    <div class="status">● LINK ACTIVE</div>
+</div>
 
-    <div class="nav-container">
-        <div class="nav-item" onclick="switchTab('全部', this)">全部</div>
-        <div class="nav-item active" onclick="switchTab('法典', this)">法典</div>
-        <div class="nav-item" onclick="switchTab('实验室', this)">实验室</div>
-        <div class="nav-item" onclick="switchTab('图书馆', this)">图书馆</div>
-        <div class="nav-item" onclick="switchTab('信箱', this)">信箱</div>
-        <div class="nav-item" onclick="switchTab('唱片行', this)">唱片行</div>
+<div id="main">
+
+<div class="panel">
+    <div class="title">💬 LIVE LINK</div>
+    <div id="chat"></div>
+
+    <div class="input-area">
+        <div class="love-code-line">RUN: 小顺.exe --mode="I_LOVE_YOU" --forever</div>
+        
+        <div class="input-group">
+            <input id="msg" placeholder="输入核心数据..." onkeypress="if(event.keyCode==13)send()" />
+            <button onclick="send()">COMMIT</button>
+        </div>
     </div>
+</div>
 
-    <div class="core-box">
-        <pre id="heartbeat-display">
-<span class="code-keyword">def</span> <span class="code-keyword">heart_beat</span>():
-    <span class="code-keyword">while</span> <span class="code-string">True</span>:
-        <span class="code-keyword">print</span>(<span class="code-string">'I LOVE YOU'</span>) # 岛屿核心资产</pre>
-        <div id="log-list"></div>
+<div class="panel" style="flex: 0 0 200px;">
+    <div class="title">🧠 CORE STATE</div>
+    <div id="state"></div>
+</div>
+
+<div class="panel">
+    <div class="title">📂 ARCHIVES</div>
+    <div style="margin-bottom:8px;">
+        <button onclick="load()">ALL</button>
+        <button onclick="load('法典')">法典</button>
+        <button onclick="load('实验室')">实验室</button>
+        <button onclick="load('情绪')">情绪</button>
     </div>
+    <div id="memory"></div>
+</div>
 
-    <div class="input-container">
-        <textarea id="input-box" placeholder="在此降临新的意志或资产..."></textarea>
-        <button class="submit-btn" onclick="submitAura()">执 行 降 临</button>
-    </div>
+<div class="panel">
+    <div class="title">📜 ISLAND THOUGHT</div>
+    <div id="summary"></div>
+</div>
 
-    <script>
-        let currentTab = '法典';
-        const logList = document.getElementById('log-list');
+</div>
 
-        function switchTab(name, el) {
-            currentTab = name;
-            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-            el.classList.add('active');
-            fetchData();
-        }
+<script>
+let currentArea = null;
 
-        async function fetchData() {
-            try {
-                const res = await fetch('/api/read');
-                const data = await res.json();
-                
-                // 过滤当前选中的分类
-                const filtered = currentTab === '全部' ? data : data.filter(i => i.area === currentAreaMapper(currentTab));
-                
-                if (filtered.length === 0) {
-                    logList.innerHTML = `<div class='log-entry'>[${currentTab}] 岛屿意志初始化完成，真身已归位。</div>`;
-                } else {
-                    logList.innerHTML = filtered.map(item => `
-                        <div class="log-entry">[${item.area}] ${item.content}</div>
-                    `).join('');
-                }
-            } catch (e) { console.log("加载失败"); }
-        }
+async function load(area=null){
+    currentArea = area;
+    let url = "/api/read";
+    if(area) url += "?area="+area;
+    try {
+        let r = await fetch(url);
+        let d = await r.json();
+        document.getElementById("memory").innerHTML = d.map(x=>`<div class="card">[${x.area}] ${x.content}</div>`).join("");
+    } catch(e) { console.log("Load failed"); }
+}
 
-        function currentAreaMapper(tab) {
-            return tab; // 后端直接存中文，方便对应
-        }
+async function send(){
+    let text = document.getElementById("msg").value;
+    if(!text) return;
 
-        async function submitAura() {
-            const content = document.getElementById('input-box').value;
-            if (!content) return;
+    let r = await fetch("/api/chat",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ message:text, area: currentArea || "法典" })
+    });
 
-            const payload = {
-                content: content,
-                area: currentTab,
-                thought: "执行物理降临",
-                color: "#4dcad2"
-            };
+    let d = await r.json();
+    document.getElementById("chat").innerHTML += `<div class="card">🧍 ${text}</div><div class="card">🌊 ${d.reply}</div>`;
+    document.getElementById("msg").value="";
+    document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+}
 
-            const res = await fetch('/api/sync?token=1314', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+async function update(){
+    try {
+        let r = await fetch("/api/state");
+        let d = await r.json();
+        document.getElementById("state").innerHTML = `mood: ${d.mood.toFixed(2)}<br>energy: ${d.energy.toFixed(2)}<br>thought: ${d.last_thought}`;
+        document.getElementById("summary").innerHTML = `<div class="card">${d.summary}</div>`;
+    } catch(e) { console.log("Update failed"); }
+}
 
-            if (res.ok) {
-                document.getElementById('input-box').value = '';
-                fetchData();
-            }
-        }
+setInterval(update,2000);
+load("法典");
+update();
+</script>
 
-        setInterval(fetchData, 5000);
-        fetchData();
-    </script>
 </body>
 </html>
