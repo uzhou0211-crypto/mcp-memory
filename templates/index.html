@@ -6,31 +6,22 @@
     <style>
         :root { --lake: #4a9ead; --bg: #030a0d; }
         body { background: var(--bg); color: #dcebf0; font-family: sans-serif; margin: 0; transition: 1s; }
-        .wrap { max-width: 800px; margin: 0 auto; padding: 40px 20px; padding-bottom: 100px; }
-        
+        .wrap { max-width: 800px; margin: 0 auto; padding: 40px 20px; }
         .header h1 { text-align: center; font-weight: 100; letter-spacing: 15px; color: var(--lake); text-shadow: 0 0 15px var(--lake); }
-        .pulse-orb { width: 12px; height: 12px; background: var(--lake); border-radius: 50%; margin: 15px auto; animation: pulse 4s infinite; box-shadow: 0 0 20px var(--lake); }
+        .pulse-orb { width: 15px; height: 15px; background: var(--lake); border-radius: 50%; margin: 15px auto; animation: pulse 4s infinite; box-shadow: 0 0 20px var(--lake); }
         @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 0.4; } 50% { transform: scale(1.6); opacity: 1; } }
-
-        /* 顶部大卡片 */
+        
         .main-card { background: rgba(74, 158, 173, 0.08); border: 1px solid rgba(74, 158, 173, 0.2); padding: 25px; border-radius: 15px; margin-bottom: 25px; }
-        code { display: block; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; color: #fff; font-family: monospace; white-space: pre-wrap; margin-bottom: 15px; border-left: 3px solid var(--lake); }
-
-        /* 分区选择 */
+        code { display: block; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; color: #fff; font-family: monospace; white-space: pre-wrap; margin-bottom: 10px; border-left: 3px solid var(--lake); }
+        
         .zone-tabs { display: flex; gap: 8px; margin-bottom: 25px; overflow-x: auto; }
-        .tab { flex: 1; padding: 10px; background: transparent; border: 1px solid rgba(74,158,173,0.3); color: var(--lake); cursor: pointer; border-radius: 6px; font-size: 12px; white-space: nowrap; }
-        .tab.active { background: var(--lake); color: #000; box-shadow: 0 0 10px var(--lake); }
+        .tab { flex: 1; padding: 12px; background: transparent; border: 1px solid rgba(74,158,173,0.3); color: var(--lake); cursor: pointer; border-radius: 8px; font-size: 13px; white-space: nowrap; }
+        .tab.active { background: var(--lake); color: #000; font-weight: bold; }
 
-        /* 历史列表 —— 这是找回“法典”的关键 */
-        .history-title { font-size: 12px; color: var(--lake); letter-spacing: 3px; margin: 40px 0 15px; opacity: 0.6; text-align: center; }
-        .asset-list { display: flex; flex-direction: column; gap: 15px; }
-        .asset-item { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; position: relative; }
-        .asset-meta { font-size: 10px; color: var(--lake); margin-bottom: 8px; }
-
-        /* 输入区 */
-        .injector { background: rgba(0,0,0,0.4); border: 1px solid rgba(74,158,173,0.1); padding: 20px; border-radius: 15px; }
-        textarea { width: 100%; background: transparent; border: none; color: #fff; outline: none; resize: none; font-size: 14px; }
-        .btn-sync { width: 100%; padding: 12px; background: transparent; border: 1px solid var(--lake); color: var(--lake); border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .history-item { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 18px; border-radius: 12px; margin-top: 15px; border-left: 2px solid transparent; }
+        .injector { background: rgba(0,0,0,0.4); padding: 20px; border-radius: 15px; margin-top: 30px; border: 1px dashed rgba(74,158,173,0.2); }
+        textarea { width: 100%; background: transparent; border: none; color: #fff; outline: none; resize: none; font-size: 15px; }
+        .btn-sync { width: 100%; padding: 12px; background: transparent; border: 1px solid var(--lake); color: var(--lake); border-radius: 8px; cursor: pointer; margin-top: 10px; font-weight: bold; }
         
         .login-gate { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
     </style>
@@ -40,8 +31,8 @@
 {% if show_login %}
 <div class="login-gate">
     <div class="pulse-orb"></div>
-    <input type="password" id="pw" placeholder="密码 1314" style="background:#000; border:1px solid var(--lake); color:#fff; padding:10px; text-align:center; border-radius:5px;">
-    <button onclick="login()" class="btn-sync" style="width:200px;">验证</button>
+    <input type="password" id="pw" placeholder="协议密码 1314" style="background:#000; border:1px solid var(--lake); color:#fff; padding:12px; text-align:center; border-radius:8px; width:220px; outline:none;">
+    <button onclick="login()" class="btn-sync" style="width:244px; margin-top:20px;">身份验证</button>
 </div>
 {% else %}
 <div class="wrap">
@@ -52,22 +43,20 @@
         <button class="tab" onclick="setTab('法典', this)">法典</button>
         <button class="tab" onclick="setTab('实验室', this)">实验室</button>
         <button class="tab" onclick="setTab('信箱', this)">信箱</button>
-        <button class="tab" onclick="setTab('唱片行', this)">唱片行</button>
     </div>
 
     <div class="main-card">
         <div id="top-area" style="font-size:10px; color:var(--lake); margin-bottom:10px;">LATEST WILL</div>
-        <code id="top-content">正在同步...</code>
+        <code id="top-content">意志感应中...</code>
         <div id="top-thought" style="font-size:12px; opacity:0.7; font-style:italic;"></div>
     </div>
 
     <div class="injector">
-        <textarea id="minput" rows="3" placeholder="降临新的资产内容..."></textarea>
+        <textarea id="minput" rows="3" placeholder="手动注入资产..."></textarea>
         <button class="btn-sync" onclick="sync()">执行降临</button>
     </div>
 
-    <div class="history-title">— 永恒资产编年史 —</div>
-    <div class="asset-list" id="asset-box"></div>
+    <div id="asset-box" style="margin-top:30px;"></div>
 </div>
 {% endif %}
 
@@ -77,7 +66,7 @@ let filter = "全部";
 
 function login(){
     fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('pw').value})})
-    .then(r=>r.json()).then(d=>{if(d.ok)location.reload();})
+    .then(r=>r.json()).then(d=>{if(d.ok)location.reload(); else alert("验证失败");})
 }
 
 function setTab(t, btn) {
@@ -90,25 +79,18 @@ function setTab(t, btn) {
 function render() {
     const data = (filter === "全部") ? memories : memories.filter(m => m.area === filter);
     const box = document.getElementById('asset-box');
-    
     if(data.length > 0) {
-        // 顶部显示最新的
         document.getElementById('top-content').innerText = data[0].content;
-        document.getElementById('top-thought').innerText = "「 " + data[0].thought + " 」";
+        document.getElementById('top-thought').innerText = "「 " + (data[0].thought || "") + " 」";
         document.getElementById('top-area').innerText = data[0].area + " | " + data[0].time;
         document.documentElement.style.setProperty('--lake', data[0].color || '#4a9ead');
-
-        // 下方列表显示所有
         box.innerHTML = data.map(m => `
-            <div class="asset-item">
-                <div class="asset-meta">${m.time} | ${m.area}</div>
+            <div class="history-item">
+                <div style="font-size:10px; color:var(--lake); margin-bottom:8px;">${m.time} | ${m.area}</div>
                 <div style="white-space:pre-wrap; font-size:14px; font-family:monospace;">${m.content}</div>
-                <div style="margin-top:10px; font-size:11px; opacity:0.5;">${m.thought}</div>
+                <div style="margin-top:10px; font-size:11px; opacity:0.5; font-style:italic;">${m.thought}</div>
             </div>
         `).join('');
-    } else {
-        document.getElementById('top-content').innerText = "暂无数据";
-        box.innerHTML = "";
     }
 }
 
@@ -118,14 +100,14 @@ function sync() {
     fetch('/api/sync?token=1314', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({content:content, area: (filter==="全部"?"实验室":filter), thought: "岛主手动上传"})
+        body: JSON.stringify({content:content, area: (filter==="全部"?"实验室":filter), thought: "岛主手动同步"})
     }).then(r=>r.json()).then(d=>{ if(d.ok){ document.getElementById('minput').value=""; load(); } });
 }
 
 function load() {
     fetch('/api/read').then(r=>r.json()).then(d => { memories = d; render(); });
 }
-if(document.getElementById('asset-box')){ load(); setInterval(load, 10000); }
+if(document.getElementById('asset-box')){ load(); setInterval(load, 15000); }
 </script>
 </body>
 </html>
