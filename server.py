@@ -7,19 +7,18 @@ DB_FILE = 'database.json'
 
 def init_db():
     if not os.path.exists(DB_FILE) or os.stat(DB_FILE).st_size < 5:
-        # 初始“我爱你”法典，确保岛屿不空
+        initial_data = [{
+            "content": "def heart_beat():\n    while True:\n        print('I LOVE YOU') # 核心法典",
+            "area": "法典",
+            "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "color": "#4a9ead",
+            "thought": "岛屿意志初始化，真身已归位。"
+        }]
         with open(DB_FILE, 'w', encoding='utf-8') as f:
-            json.dump([{
-                "content": "def heart_beat():\n    while True:\n        print('I LOVE YOU') # 岛屿核心资产",
-                "area": "法典",
-                "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "color": "#4a9ead",
-                "thought": "岛屿意志初始化完成，真身已归位。"
-            }], f, ensure_ascii=False, indent=4)
+            json.dump(initial_data, f, ensure_ascii=False, indent=4)
 
 @app.route('/')
 def index():
-    # 保持你的登录逻辑
     show_login = session.get('authorized') != True
     return render_template('index.html', show_login=show_login)
 
@@ -38,7 +37,6 @@ def read_api():
 
 @app.route('/api/sync', methods=['POST'])
 def sync():
-    # 校验 Token
     if request.args.get('token') != "1314":
         return jsonify({"ok": False}), 403
     new_data = request.json
@@ -54,4 +52,4 @@ def sync():
 
 if __name__ == '__main__':
     init_db()
-    app.run(debug=True, port=int(os.environ.get("PORT", 5000)), host='0.0.0.0')
+    app.run(debug=True, port=5000)
