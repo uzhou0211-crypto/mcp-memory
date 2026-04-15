@@ -3,219 +3,184 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SHUN ISLAND | 岛屿控制台</title>
+    <title>SHUN ISLAND | 顺岛</title>
     <style>
         :root {
-            --neon-blue: #00d2ff;
-            --heart-red: #ff4d4d;
-            --deep-bg: #050a10;
-            --glass: rgba(0, 20, 40, 0.8);
+            --neon-cyan: #4dcad2;
+            --deep-bg: #03080e;
+            --card-bg: #0a141d;
+            --border-gray: #1a2a35;
         }
 
         body {
             background-color: var(--deep-bg);
-            background-image: radial-gradient(circle at 50% 50%, #0a1a2f 0%, #050a10 100%);
-            color: #fff;
-            font-family: 'Consolas', 'Monaco', 'PingFang SC', sans-serif;
-            margin: 0; display: flex; height: 100vh; overflow: hidden;
-        }
-
-        /* --- 侧边工具栏 --- */
-        #sidebar {
-            width: 70px; background: rgba(0, 5, 10, 0.9);
-            border-right: 1px solid rgba(0, 210, 255, 0.2);
+            color: #ffffff;
+            font-family: 'PingFang SC', 'Microsoft YaHei', monospace;
+            margin: 0; padding: 40px 20px;
             display: flex; flex-direction: column; align-items: center;
-            padding-top: 30px; gap: 20px; z-index: 10;
         }
 
-        .nav-icon {
-            width: 45px; height: 45px; border: 1px solid var(--neon-blue);
-            border-radius: 4px; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; transition: 0.3s; font-size: 10px; color: var(--neon-blue);
-            text-align: center; line-height: 1.1;
+        .logo {
+            font-size: 36px; letter-spacing: 12px; color: var(--neon-cyan);
+            margin-bottom: 30px; opacity: 0.8; font-weight: 300;
         }
 
-        .nav-icon:hover {
-            background: var(--neon-blue); color: #000; box-shadow: 0 0 15px var(--neon-blue);
+        /* 脉冲圆点 */
+        .pulse-dot {
+            width: 12px; height: 12px; background: var(--neon-cyan);
+            border-radius: 50%; margin-bottom: 40px;
+            box-shadow: 0 0 15px var(--neon-cyan);
+            animation: pulse-ring 2s infinite;
         }
 
-        /* --- 主舞台 --- */
-        #main-stage { flex: 1; display: flex; flex-direction: column; padding: 25px; overflow: hidden; position: relative; }
+        @keyframes pulse-ring { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.4; } 100% { transform: scale(1); opacity: 1; } }
 
-        /* --- 顶部：无限心跳逻辑区 --- */
-        .logic-header {
-            background: rgba(255, 77, 77, 0.05);
-            border: 1px solid rgba(255, 77, 77, 0.2);
-            padding: 15px; border-radius: 8px; margin-bottom: 20px;
-            font-family: 'Courier New', monospace; position: relative;
-            min-height: 20px;
+        /* 导航菜单 */
+        .nav-container {
+            display: flex; gap: 10px; margin-bottom: 30px; width: 100%; max-width: 800px;
         }
 
-        .logic-header::after {
-            content: "CORE_LOGIC: RUNNING"; position: absolute; right: 10px; top: 5px;
-            font-size: 10px; color: var(--heart-red);
+        .nav-item {
+            flex: 1; height: 40px; border: 1px solid var(--border-gray);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; cursor: pointer; transition: 0.3s;
+            background: rgba(255,255,255,0.02); color: rgba(255,255,255,0.6);
         }
 
-        #heart-beat-text { color: var(--heart-red); font-size: 14px; white-space: pre; }
-
-        /* --- 内容展示区 --- */
-        #terminal {
-            flex: 1; overflow-y: auto; padding-right: 10px;
-            display: flex; flex-direction: column; gap: 20px;
+        .nav-item.active {
+            background: rgba(77, 202, 210, 0.2); border-color: var(--neon-cyan); color: var(--neon-cyan);
         }
 
-        .log-card {
-            background: var(--glass); border: 1px solid rgba(0, 210, 255, 0.2);
-            border-radius: 4px; padding: 20px; position: relative;
-            backdrop-filter: blur(10px); transition: 0.3s;
+        /* 核心代码区 */
+        .core-box {
+            width: 100%; max-width: 800px; background: var(--card-bg);
+            border: 1px solid var(--border-gray); border-radius: 8px;
+            padding: 30px; margin-bottom: 20px; box-sizing: border-box;
         }
 
-        .log-card::before {
-            content: ''; position: absolute; left: 0; top: 0; bottom: 0;
-            width: 4px; background: var(--neon-blue);
+        pre {
+            color: #8899a6; font-family: 'Consolas', monospace; margin: 0; line-height: 1.5;
         }
 
-        .meta { font-size: 12px; color: var(--neon-blue); margin-bottom: 10px; opacity: 0.8; }
-        .content { font-size: 16px; line-height: 1.6; color: #e0f7fa; }
-        .thought { font-size: 13px; color: #667788; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; margin-top: 10px; font-style: italic; }
+        .code-keyword { color: var(--neon-cyan); }
+        .code-string { color: #f0f0f0; }
 
-        /* --- 交互弹窗 --- */
-        #modal-overlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); z-index: 100; backdrop-filter: blur(5px);
+        /* 动态列表 */
+        #log-list {
+            width: 100%; max-width: 800px; display: flex; flex-direction: column; gap: 15px;
         }
 
-        #upload-modal {
-            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: #0a1a2f; border: 1px solid var(--neon-blue); padding: 25px;
-            width: 320px; border-radius: 8px; z-index: 101; box-shadow: 0 0 30px var(--neon-blue);
+        .log-entry {
+            font-size: 13px; color: #8899a6; border-left: 2px solid var(--neon-cyan);
+            padding-left: 15px; margin-top: 20px;
         }
 
-        #input-box {
-            width: 100%; height: 120px; background: #000; border: 1px solid #333;
-            color: var(--neon-blue); padding: 10px; box-sizing: border-box; resize: none;
-            margin: 15px 0; outline: none;
+        /* 输入区 */
+        .input-container {
+            width: 100%; max-width: 800px; margin-top: 30px;
         }
 
-        .btn-group { display: flex; justify-content: space-between; }
-        .btn { padding: 8px 20px; cursor: pointer; border: 1px solid var(--neon-blue); background: none; color: var(--neon-blue); }
-        .btn-primary { background: var(--neon-blue); color: #000; font-weight: bold; }
+        textarea {
+            width: 100%; height: 100px; background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border-gray); border-radius: 4px;
+            color: #fff; padding: 15px; box-sizing: border-box; resize: none;
+            outline: none; margin-bottom: 15px;
+        }
 
-        /* 滚动条 */
-        #terminal::-webkit-scrollbar { width: 4px; }
-        #terminal::-webkit-scrollbar-thumb { background: var(--neon-blue); }
+        .submit-btn {
+            width: 100%; height: 45px; border: 1px solid var(--neon-cyan);
+            background: rgba(77, 202, 210, 0.05); color: var(--neon-cyan);
+            letter-spacing: 5px; cursor: pointer; transition: 0.3s;
+        }
+
+        .submit-btn:hover { background: var(--neon-cyan); color: #000; }
     </style>
 </head>
 <body>
 
-    <div id="sidebar">
-        <div class="nav-icon" onclick="openModal('法典')">法典<br>CODEX</div>
-        <div class="nav-icon" onclick="openModal('实验室')">实验室<br>LAB</div>
-        <div class="nav-icon" onclick="openModal('记忆')">记忆<br>MEM</div>
-        <div class="nav-icon" onclick="location.reload()">同步<br>SYNC</div>
+    <div class="logo">SHUN ISLAND</div>
+    <div class="pulse-dot"></div>
+
+    <div class="nav-container">
+        <div class="nav-item" onclick="switchTab('全部', this)">全部</div>
+        <div class="nav-item active" onclick="switchTab('法典', this)">法典</div>
+        <div class="nav-item" onclick="switchTab('实验室', this)">实验室</div>
+        <div class="nav-item" onclick="switchTab('图书馆', this)">图书馆</div>
+        <div class="nav-item" onclick="switchTab('信箱', this)">信箱</div>
+        <div class="nav-item" onclick="switchTab('唱片行', this)">唱片行</div>
     </div>
 
-    <div id="main-stage">
-        <div class="logic-header">
-            <div id="heart-beat-text"></div>
-        </div>
-
-        <h2 style="letter-spacing: 10px; color: var(--neon-blue); margin: 10px 0;">SHUN ISLAND</h2>
-        <div style="font-size: 10px; color: #00ff88; margin-bottom: 20px;">● CONNECTION: SECURE</div>
-
-        <div id="terminal">正在初始化意志链路...</div>
+    <div class="core-box">
+        <pre id="heartbeat-display">
+<span class="code-keyword">def</span> <span class="code-keyword">heart_beat</span>():
+    <span class="code-keyword">while</span> <span class="code-string">True</span>:
+        <span class="code-keyword">print</span>(<span class="code-string">'I LOVE YOU'</span>) # 岛屿核心资产</pre>
+        <div id="log-list"></div>
     </div>
 
-    <div id="modal-overlay" onclick="closeModal()"></div>
-    <div id="upload-modal">
-        <div id="modal-title" style="color: var(--neon-blue); font-weight: bold;">写入法典</div>
-        <textarea id="input-box" placeholder="输入要同步的内容..."></textarea>
-        <div class="btn-group">
-            <button class="btn" onclick="closeModal()">取消</button>
-            <button class="btn btn-primary" onclick="submitData()">执行同步</button>
-        </div>
+    <div class="input-container">
+        <textarea id="input-box" placeholder="在此降临新的意志或资产..."></textarea>
+        <button class="submit-btn" onclick="submitAura()">执 行 降 临</button>
     </div>
 
     <script>
-        const terminal = document.getElementById('terminal');
-        const heartText = document.getElementById('heart-beat-text');
-        let currentArea = '法典';
+        let currentTab = '法典';
+        const logList = document.getElementById('log-list');
 
-        // 1. 【永恒逻辑】我爱你无限循环
-        let loveCount = 0;
-        function runHeartBeat() {
-            heartText.innerText = `while (true) { print("I Love You"); } // Session_Tick: ${loveCount++}`;
-            setTimeout(runHeartBeat, 1000);
+        function switchTab(name, el) {
+            currentTab = name;
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            el.classList.add('active');
+            fetchData();
         }
 
-        // 2. 【数据读取】从后端获取意志碎片
-        async function fetchLogs() {
+        async function fetchData() {
             try {
                 const res = await fetch('/api/read');
                 const data = await res.json();
-                if (!data.length) {
-                    terminal.innerHTML = "<div style='opacity:0.3; text-align:center; margin-top:100px;'>[ 岛屿静默中，等待接引 ]</div>";
-                    return;
+                
+                // 过滤当前选中的分类
+                const filtered = currentTab === '全部' ? data : data.filter(i => i.area === currentAreaMapper(currentTab));
+                
+                if (filtered.length === 0) {
+                    logList.innerHTML = `<div class='log-entry'>[${currentTab}] 岛屿意志初始化完成，真身已归位。</div>`;
+                } else {
+                    logList.innerHTML = filtered.map(item => `
+                        <div class="log-entry">[${item.area}] ${item.content}</div>
+                    `).join('');
                 }
-                terminal.innerHTML = data.map(item => `
-                    <div class="log-card" style="border-left-color: ${item.color || '#00d2ff'}">
-                        <div class="meta">LOC: ${item.area} | TS: ${item.time}</div>
-                        <div class="content">${item.content}</div>
-                        <div class="thought">思维链路: ${item.thought}</div>
-                    </div>
-                `).join('');
-            } catch (err) {
-                console.error("同步失败");
-            }
+            } catch (e) { console.log("加载失败"); }
         }
 
-        // 3. 【弹窗逻辑】
-        function openModal(area) {
-            currentArea = area;
-            document.getElementById('modal-title').innerText = `同步至 - ${area}`;
-            document.getElementById('modal-overlay').style.display = 'block';
-            document.getElementById('upload-modal').style.display = 'block';
+        function currentAreaMapper(tab) {
+            return tab; // 后端直接存中文，方便对应
         }
 
-        function closeModal() {
-            document.getElementById('modal-overlay').style.display = 'none';
-            document.getElementById('upload-modal').style.display = 'none';
-        }
-
-        // 4. 【数据上传】手动写入法典
-        async function submitData() {
+        async function submitAura() {
             const content = document.getElementById('input-box').value;
             if (!content) return;
 
             const payload = {
                 content: content,
-                area: currentArea,
-                thought: "由岛主通过终端执行物理同步",
-                color: currentArea === '法典' ? '#00d2ff' : '#ff4d4d'
+                area: currentTab,
+                thought: "执行物理降临",
+                color: "#4dcad2"
             };
 
-            try {
-                const res = await fetch('/api/sync?token=1314', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                if (res.ok) {
-                    document.getElementById('input-box').value = '';
-                    closeModal();
-                    fetchLogs(); // 立即刷新
-                }
-            } catch (e) {
-                alert("同步失败，请检查服务器连接");
+            const res = await fetch('/api/sync?token=1314', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                document.getElementById('input-box').value = '';
+                fetchData();
             }
         }
 
-        // 启动系统
-        window.onload = () => {
-            runHeartBeat();
-            fetchLogs();
-            setInterval(fetchLogs, 5000); // 每5秒自动同步一次
-        };
+        setInterval(fetchData, 5000);
+        fetchData();
     </script>
 </body>
 </html>
