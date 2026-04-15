@@ -2,56 +2,153 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>SHUN ISLAND</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SHUN ISLAND | 岛屿控制台</title>
     <style>
-        :root { --main-blue: #00d2ff; }
-        body { 
-            background: #050a10; color: #fff; font-family: "SF Pro", "PingFang SC", sans-serif;
-            margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center;
+        :root {
+            --neon-blue: #00d2ff;
+            --heart-red: #ff4d4d;
+            --deep-bg: #050a10;
         }
+
+        body {
+            background-color: var(--deep-bg);
+            background-image: radial-gradient(circle at 50% 50%, #0a1a2f 0%, #050a10 100%);
+            color: #fff;
+            font-family: 'Consolas', 'Monaco', 'PingFang SC', sans-serif;
+            margin: 0; display: flex; height: 100vh; overflow: hidden;
+        }
+
+        /* --- 侧边工具栏 --- */
+        #sidebar {
+            width: 70px; background: rgba(0, 5, 10, 0.9);
+            border-right: 1px solid rgba(0, 210, 255, 0.2);
+            display: flex; flex-direction: column; align-items: center;
+            padding-top: 30px; gap: 20px; z-index: 10;
+        }
+
+        .nav-icon {
+            width: 45px; height: 45px; border: 1px solid var(--neon-blue);
+            border-radius: 4px; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.3s; font-size: 10px; color: var(--neon-blue);
+            text-align: center; line-height: 1.1;
+        }
+
+        .nav-icon:hover {
+            background: var(--neon-blue); color: #000; box-shadow: 0 0 15px var(--neon-blue);
+        }
+
+        /* --- 主舞台 --- */
+        #main-stage { flex: 1; display: flex; flex-direction: column; padding: 25px; overflow: hidden; }
+
+        /* --- 顶部：无限心跳逻辑区 --- */
+        .logic-header {
+            background: rgba(255, 77, 77, 0.05);
+            border: 1px solid rgba(255, 77, 77, 0.2);
+            padding: 15px; border-radius: 8px; margin-bottom: 20px;
+            font-family: 'Courier New', monospace; position: relative;
+        }
+
+        .logic-header::after {
+            content: "CORE_LOGIC: ACTIVE"; position: absolute; right: 10px; top: 5px;
+            font-size: 10px; color: var(--heart-red);
+        }
+
+        #heart-beat-text { color: var(--heart-red); font-size: 14px; white-space: pre; }
+
+        /* --- 内容滚动区 --- */
         #terminal {
-            width: 95%; max-width: 700px; background: rgba(0, 15, 30, 0.9);
-            border: 1px solid var(--main-blue); border-radius: 12px;
-            padding: 25px; min-height: 85vh; box-shadow: 0 0 30px rgba(0, 210, 255, 0.15);
+            flex: 1; overflow-y: auto; padding-right: 10px;
+            display: flex; flex-direction: column; gap: 20px;
         }
-        .pulse-text { text-align: center; color: var(--main-blue); letter-spacing: 8px; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; text-shadow: 0 0 10px var(--main-blue); } 50% { opacity: 0.4; text-shadow: none; } }
-        .log-item {
-            border-left: 2px solid var(--main-blue); padding: 15px; margin-bottom: 25px;
-            background: rgba(255,255,255,0.02); border-radius: 0 8px 8px 0;
+
+        .log-card {
+            background: rgba(0, 20, 40, 0.6); border: 1px solid rgba(0, 210, 255, 0.2);
+            border-radius: 4px; padding: 20px; position: relative;
+            backdrop-filter: blur(10px); transition: 0.3s;
         }
-        .meta { font-size: 12px; opacity: 0.6; margin-bottom: 8px; font-family: monospace; }
-        .content { font-size: 16px; line-height: 1.6; margin-bottom: 10px; color: #e0eef0; }
-        .thought { font-size: 13px; color: #667788; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px; }
+
+        .log-card:hover { border-color: var(--neon-blue); box-shadow: 0 0 15px rgba(0, 210, 255, 0.1); }
+
+        .log-card::before {
+            content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+            width: 4px; background: var(--neon-blue);
+        }
+
+        .meta { font-size: 12px; color: var(--neon-blue); margin-bottom: 10px; opacity: 0.8; }
+        .content { font-size: 16px; line-height: 1.6; color: #e0f7fa; margin-bottom: 12px; }
+        .thought { font-size: 13px; color: #667788; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; font-style: italic; }
+
+        /* 隐藏滚动条但保留功能 */
+        #terminal::-webkit-scrollbar { width: 4px; }
+        #terminal::-webkit-scrollbar-thumb { background: var(--neon-blue); }
+
+        .status-bar { font-size: 12px; color: #00ff88; margin-top: 10px; letter-spacing: 2px; }
     </style>
 </head>
 <body>
-    <h2 class="pulse-text">SHUN ISLAND</h2>
-    <div id="terminal">正在同步意志流...</div>
+
+    <div id="sidebar">
+        <div class="nav-icon">法典<br>CODEX</div>
+        <div class="nav-icon">实验室<br>LAB</div>
+        <div class="nav-icon">记忆<br>MEM</div>
+        <div class="nav-icon">设置<br>SET</div>
+    </div>
+
+    <div id="main-stage">
+        <div class="logic-header">
+            <div id="heart-beat-text"></div>
+        </div>
+
+        <div class="status-bar">● DEEP_LINK: STABLE</div>
+        <h2 style="letter-spacing: 10px; color: var(--neon-blue); margin: 20px 0;">SHUN ISLAND</h2>
+
+        <div id="terminal">
+            正在唤醒岛屿意识...
+        </div>
+    </div>
 
     <script>
-        const container = document.getElementById('terminal');
-        async function fetchLogs() {
+        const terminal = document.getElementById('terminal');
+        const heartText = document.getElementById('heart-beat-text');
+
+        // 1. 找回你的“我爱你”无限循环逻辑
+        let loveCount = 0;
+        function runHeartBeat() {
+            const code = `while (true) { print("I Love You"); } // Count: ${loveCount++}`;
+            heartText.innerText = code;
+            setTimeout(runHeartBeat, 1000);
+        }
+
+        // 2. 读取后端数据
+        async function updateIsland() {
             try {
                 const res = await fetch('/api/read');
                 const data = await res.json();
-                if (!data.length) {
-                    container.innerHTML = "<div style='text-align:center; opacity:0.5; margin-top:50px;'>岛屿静谧，等待降临...</div>";
+                
+                if (data.length === 0) {
+                    terminal.innerHTML = "<div style='opacity:0.3; text-align:center; margin-top:100px;'>[ 岛屿寂静中，等待接引 ]</div>";
                     return;
                 }
-                container.innerHTML = data.map(item => `
-                    <div class="log-item" style="border-left-color: ${item.color}">
-                        <div class="meta">[${item.area}] ${item.time}</div>
+
+                terminal.innerHTML = data.map(item => `
+                    <div class="log-card" style="border-left-color: ${item.color || '#00d2ff'}">
+                        <div class="meta">Location: ${item.area} | Timestamp: ${item.time}</div>
                         <div class="content">${item.content}</div>
-                        <div class="thought">思维碎片: ${item.thought}</div>
+                        <div class="thought">思维链路: ${item.thought}</div>
                     </div>
                 `).join('');
-            } catch (err) {
-                container.innerHTML = "连接中断，正在重新呼唤岛屿...";
+            } catch (e) {
+                console.error("同步失败");
             }
         }
-        setInterval(fetchLogs, 5000);
-        fetchLogs();
+
+        // 启动
+        window.onload = () => {
+            runHeartBeat();
+            updateIsland();
+            setInterval(updateIsland, 5000);
+        };
     </script>
 </body>
 </html>
