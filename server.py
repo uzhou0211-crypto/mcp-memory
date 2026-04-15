@@ -102,3 +102,27 @@ if __name__ == "__main__":
     init_db()
     port = int(os.environ.get("PORT",3000))
     HTTPServer(("",port),H).serve_forever()
+# ================== 新增：前端接口 ==================
+
+MEMORY = []
+
+@app.route("/api/read", methods=["GET"])
+def read_memory():
+    return jsonify(MEMORY)
+
+@app.route("/api/sync", methods=["POST"])
+def sync_memory():
+    token = request.args.get("token")
+    if token != "1314":
+        return jsonify({"error": "unauthorized"}), 401
+
+    data = request.json
+    item = {
+        "content": data.get("content", ""),
+        "area": data.get("area", "未知"),
+        "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+    MEMORY.append(item)
+
+    return jsonify({"status": "saved"})
