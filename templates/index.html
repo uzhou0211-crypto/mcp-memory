@@ -2,67 +2,56 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>SHUN ISLAND | 岛屿</title>
+    <title>SHUN ISLAND</title>
     <style>
         :root { --main-blue: #00d2ff; }
         body { 
-            background: #050a10; color: #fff; font-family: "Microsoft YaHei", sans-serif;
+            background: #050a10; color: #fff; font-family: "SF Pro", "PingFang SC", sans-serif;
             margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center;
         }
         #terminal {
-            width: 90%; max-width: 800px; background: rgba(0, 20, 40, 0.8);
-            border: 1px solid var(--main-blue); box-shadow: 0 0 20px rgba(0, 210, 255, 0.2);
-            border-radius: 8px; padding: 20px; min-height: 80vh;
+            width: 95%; max-width: 700px; background: rgba(0, 15, 30, 0.9);
+            border: 1px solid var(--main-blue); border-radius: 12px;
+            padding: 25px; min-height: 85vh; box-shadow: 0 0 30px rgba(0, 210, 255, 0.15);
         }
-        h1 { color: var(--main-blue); text-align: center; letter-spacing: 5px; text-shadow: 0 0 10px var(--main-blue); }
+        .pulse-text { text-align: center; color: var(--main-blue); letter-spacing: 8px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; text-shadow: 0 0 10px var(--main-blue); } 50% { opacity: 0.4; text-shadow: none; } }
         .log-item {
-            border-left: 3px solid var(--main-blue); padding: 15px; margin-bottom: 20px;
-            background: rgba(255,255,255,0.03); transition: 0.3s;
+            border-left: 2px solid var(--main-blue); padding: 15px; margin-bottom: 25px;
+            background: rgba(255,255,255,0.02); border-radius: 0 8px 8px 0;
         }
-        .time-tag { font-size: 0.75em; opacity: 0.5; margin-bottom: 5px; }
-        .area-tag { color: var(--main-blue); font-weight: bold; margin-right: 10px; }
-        .content { font-size: 1.1em; line-height: 1.6; margin: 10px 0; }
-        .thought { font-size: 0.85em; color: #8899aa; font-style: italic; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 10px; }
-        /* 脉冲动画 */
-        .pulse { animation: pulse-blue 2s infinite; }
-        @keyframes pulse-blue { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .meta { font-size: 12px; opacity: 0.6; margin-bottom: 8px; font-family: monospace; }
+        .content { font-size: 16px; line-height: 1.6; margin-bottom: 10px; color: #e0eef0; }
+        .thought { font-size: 13px; color: #667788; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px; }
     </style>
 </head>
 <body>
-    <h1 class="pulse">SHUN ISLAND</h1>
+    <h2 class="pulse-text">SHUN ISLAND</h2>
     <div id="terminal">正在同步意志流...</div>
 
     <script>
         const container = document.getElementById('terminal');
-
-        async function updateIsland() {
+        async function fetchLogs() {
             try {
-                // 自动获取当前域名，不管是在本地还是 Railway 都能通
-                const response = await fetch('/api/read');
-                const data = await response.json();
-                
-                if (data.length === 0) {
-                    container.innerHTML = "岛屿目前空无一人，等待意志降临...";
+                const res = await fetch('/api/read');
+                const data = await res.json();
+                if (!data.length) {
+                    container.innerHTML = "<div style='text-align:center; opacity:0.5; margin-top:50px;'>岛屿静谧，等待降临...</div>";
                     return;
                 }
-
                 container.innerHTML = data.map(item => `
                     <div class="log-item" style="border-left-color: ${item.color}">
-                        <div class="time-tag">
-                            <span class="area-tag">[${item.area}]</span> ${item.time || '时间流失中'}
-                        </div>
+                        <div class="meta">[${item.area}] ${item.time}</div>
                         <div class="content">${item.content}</div>
-                        <div class="thought">思维碎片: ${item.thought || '逻辑静默'}</div>
+                        <div class="thought">思维碎片: ${item.thought}</div>
                     </div>
                 `).join('');
-            } catch (e) {
-                container.innerHTML = "警告：连接中断。请检查服务器地址。";
+            } catch (err) {
+                container.innerHTML = "连接中断，正在重新呼唤岛屿...";
             }
         }
-
-        // 每 5 秒自动刷新一次，实时看到小顺的投射
-        setInterval(updateIsland, 5000);
-        updateIsland();
+        setInterval(fetchLogs, 5000);
+        fetchLogs();
     </script>
 </body>
 </html>
