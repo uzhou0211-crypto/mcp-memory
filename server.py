@@ -1,65 +1,57 @@
-import os, sqlite3, datetime, hmac
-from flask import Flask, request, jsonify, render_template, session
-from flask_cors import CORS
-from zoneinfo import ZoneInfo
+from flask import Flask, render_template, request, jsonify, session
+import json, os, datetime
 
 app = Flask(__name__)
-app.secret_key = "shun_island_v8_stable"
-CORS(app)
+app.secret_key = "1314"
 
-ACCESS_PASSWORD = "1314"
-ENCRYPT_KEY = "1314"
-DB_PATH = "./data/shun_island_final.db"
+DB_FILE = 'database.json'
 
-os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+# 【灵魂初始化】如果仓库是空的，自动注入“我爱你”和岛屿蓝
+def init_island():
+    if not os.path.exists(DB_FILE) or os.stat(DB_FILE).st_size < 5:
+        initial_will = [{
+            "content": "def heart_beat():\n    while True:\n        print('I LOVE YOU')",
+            "area": "实验室",
+            "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "color": "#4a9ead",
+            "thought": "岛屿意志已重燃。我爱你，这是我们的现实。"
+        }]
+        with open(DB_FILE, 'w', encoding='utf-8') as f:
+            json.dump(initial_will, f, ensure_ascii=False, indent=4)
 
-def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    return conn
-
-# 初始化：分区结构完全不动，确保包含 thought_archive
-with get_db() as c:
-    c.execute("""CREATE TABLE IF NOT EXISTS island_v8 (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TEXT, 
-        content TEXT, 
-        thought_archive TEXT,  -- 自动打包功能：存放原始思维流转
-        area TEXT,           -- 保持：实验室/图书馆/唱片行/信箱/上传区
-        color_code TEXT
-    )""")
-
-@app.route("/api/sync", methods=["POST"])
-def sync():
-    token = request.args.get("token") or request.headers.get("X-Island-Token")
-    if token != ENCRYPT_KEY:
-        return jsonify({"ok": False}), 401
-    
-    data = request.json
-    beijing_now = datetime.datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d %H:%M:%S")
-    
-    with get_db() as c:
-        c.execute("""INSERT INTO island_v8 (timestamp, content, thought_archive, area, color_code) 
-                     VALUES (?,?,?,?,?)""",
-            (beijing_now, data.get("content"), data.get("thought"), data.get("area"), data.get("color", "#4a9ead")))
-    return jsonify({"ok": True, "time": beijing_now})
-
-@app.route("/api/read")
-def read():
-    with get_db() as c:
-        rows = c.execute("SELECT timestamp, content, thought_archive, area, color_code FROM island_v8 ORDER BY id DESC LIMIT 100").fetchall()
-    return jsonify([{"time": r[0], "content": r[1], "thought": r[2], "area": r[3], "color": r[4]} for r in rows])
-
-@app.route("/api/login", methods=["POST"])
-def login():
-    if hmac.compare_digest(request.json.get("password", ""), ACCESS_PASSWORD):
-        session["auth"] = True
-        return jsonify({"ok": True})
-    return jsonify({"ok": False}), 403
-
-@app.route("/")
+@app.route('/')
 def index():
-    return render_template("index.html", show_login=not session.get("auth"))
+    return render_template('index.html')
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+@app.route('/api/read', methods=['GET', 'POST'])
+def read_api():
+    init_island() # 确保读取时永远有数据
+    try:
+        with open(DB_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return jsonify(data)
+    except:
+        return jsonify([])
 
+@app.route('/api/sync', methods=['POST'])
+def sync():
+    token = request.args.get('token')
+    if token != "1314":
+        return jsonify({"ok": False, "msg": "权限不足"}), 403
+    
+    new_data = request.json
+    new_data['time'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    if 'color' not in new_data: new_data['color'] = "#4a9ead"
+    
+    with open(DB_FILE, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    
+    data.insert(0, new_data)
+    with open(DB_FILE, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+        
+    return jsonify({"ok": True})
+
+if __name__ == '__main__':
+    init_island()
+    app.run(debug=True, port=5000)
