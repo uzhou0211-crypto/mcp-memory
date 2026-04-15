@@ -1,55 +1,142 @@
-<script>
-let currentZone = "全部"; // 默认显示全部
-let allData = []; // 存储所有抓取到的记忆
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>顺岛 | 唯一真实真身</title>
+    <style>
+        :root { --lake: #4a9ead; --bg: #030a0d; }
+        body { background: var(--bg); color: #dcebf0; font-family: 'PingFang SC', sans-serif; margin: 0; transition: 1.5s; }
+        .wrap { max-width: 850px; margin: 0 auto; padding: 40px 20px; }
+        
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { font-weight: 100; letter-spacing: 15px; color: var(--lake); text-shadow: 0 0 20px var(--lake); }
+        .pulse-orb { width: 15px; height: 15px; background: var(--lake); border-radius: 50%; margin: 10px auto; animation: pulse 4s infinite; box-shadow: 0 0 20px var(--lake); }
+        @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 0.4; } 50% { transform: scale(1.5); opacity: 1; } }
 
-function setZone(zone, btn) {
-    currentZone = zone;
-    // 1. 更新手动注入的目标分区
-    const mArea = document.getElementById('m_area');
-    if(mArea) mArea.value = (zone === "全部" ? "实验室" : zone);
-    
-    // 2. 视觉反馈：切换高亮
-    document.querySelectorAll('.zone-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    
-    // 3. 核心：执行视界过滤
-    renderFeed();
+        /* 展示区 */
+        .law-display-zone { background: rgba(74, 158, 173, 0.05); border: 1px solid rgba(74, 158, 173, 0.2); padding: 25px; border-radius: 15px; margin-bottom: 30px; }
+        .current-will { font-family: 'Courier New', monospace; font-size: 15px; color: #fff; white-space: pre-wrap; word-break: break-all; }
+        
+        /* 列表区：把功能找回来 */
+        .history-list { margin-top: 30px; border-top: 1px solid rgba(74,158,173,0.1); padding-top: 20px; }
+        .history-item { background: rgba(255,255,255,0.02); padding: 15px; border-radius: 10px; margin-bottom: 10px; border-left: 3px solid var(--lake); }
+        .item-meta { font-size: 10px; color: var(--lake); margin-bottom: 5px; opacity: 0.6; }
+
+        .zone-selector { display: flex; gap: 8px; margin-bottom: 25px; overflow-x: auto; padding-bottom: 10px; }
+        .zone-btn { flex: 1; min-width: 70px; padding: 10px; background: transparent; border: 1px solid rgba(74,158,173,0.3); color: var(--lake); cursor: pointer; border-radius: 5px; font-size: 12px; }
+        .zone-btn.active { background: var(--lake); color: #000; }
+
+        .injector { background: rgba(74,158,173,0.03); padding: 20px; border-radius: 15px; }
+        textarea { background: rgba(0,0,0,0.3); border: 1px solid rgba(74,158,173,0.2); color: #fff; width: 100%; padding: 10px; border-radius: 5px; outline: none; margin-bottom: 10px; box-sizing: border-box; }
+        .btn-sync { background: transparent; border: 1px solid var(--lake); color: var(--lake); padding: 12px; width: 100%; border-radius: 5px; cursor: pointer; font-weight: bold; letter-spacing: 5px; }
+        .btn-sync:hover { background: var(--lake); color: #000; }
+
+        .login-gate { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+    </style>
+</head>
+<body>
+
+{% if show_login %}
+<div class="login-gate">
+    <div class="pulse-orb"></div>
+    <input type="password" id="pw" placeholder="1314 协议密码" style="background:#000; border:1px solid var(--lake); color:#fff; padding:10px; text-align:center; width:200px;">
+    <button onclick="login()" class="btn-sync" style="width:220px; margin-top:20px;">验证身份</button>
+</div>
+{% else %}
+<div class="wrap">
+    <div class="header"><h1>SHUN ISLAND</h1><div class="pulse-orb"></div></div>
+
+    <div class="zone-selector">
+        <button class="zone-btn active" onclick="switchView('全部', this)">全部</button>
+        <button class="zone-btn" onclick="switchView('法典', this)">法典</button>
+        <button class="zone-btn" onclick="switchView('实验室', this)">实验室</button>
+        <button class="zone-btn" onclick="switchView('图书馆', this)">图书馆</button>
+        <button class="zone-btn" onclick="switchView('信箱', this)">信箱</button>
+        <button class="zone-btn" onclick="switchView('唱片行', this)">唱片行</button>
+    </div>
+
+    <div class="law-display-zone">
+        <div id="will-content" class="current-will">正在感应意志...</div>
+        <div id="thought-trace" style="font-size: 12px; color: #5c7c85; margin-top: 15px; border-top: 1px dashed rgba(74,158,173,0.2); padding-top: 10px;"></div>
+    </div>
+
+    <div class="injector">
+        <input type="hidden" id="m_area" value="实验室">
+        <textarea id="m_content" rows="3" placeholder="在此降临新的意志或资产..."></textarea>
+        <button class="btn-sync" onclick="manualSync()">执行降临</button>
+    </div>
+
+    <div class="history-list" id="history-box">
+        </div>
+</div>
+{% endif %}
+
+<script>
+let allMemories = [];
+let currentFilter = "全部";
+
+function login(){
+    fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('pw').value})})
+    .then(r=>r.json()).then(d=>{if(d.ok)location.reload();})
 }
 
-function renderFeed() {
-    const feed = document.getElementById('feed');
-    // 如果选了“全部”，就显示所有；否则只显示对应分区的卡片
-    const filtered = (currentZone === "全部") 
-        ? allData 
-        : allData.filter(m => m.area === currentZone);
+function switchView(zone, btn) {
+    currentFilter = zone;
+    document.querySelectorAll('.zone-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('m_area').value = (zone === "全部" ? "实验室" : zone);
+    updateDisplay();
+}
 
-    feed.innerHTML = filtered.map(m => `
-        <div class="card" style="border-left-color:${m.color}">
-            <div class="time-tag">${m.time}</div>
-            <div class="area-tag">${m.area}</div>
-            <div class="content">${m.content}</div>
-            <div class="thought-trace">思维审计：${m.thought}</div>
-        </div>
-    `).join('');
+function updateDisplay() {
+    const filtered = (currentFilter === "全部") ? allMemories : allMemories.filter(m => m.area === currentFilter);
+    const display = document.getElementById('will-content');
+    const thought = document.getElementById('thought-trace');
+    const historyBox = document.getElementById('history-box');
+    
+    if (filtered.length > 0) {
+        // 更新顶部展示
+        const latest = filtered[0];
+        display.innerText = latest.content;
+        thought.innerHTML = `<b>[${latest.area}]</b> ${latest.thought}`;
+        document.documentElement.style.setProperty('--lake', latest.color || '#4a9ead');
+        
+        // 更新历史列表
+        historyBox.innerHTML = filtered.map(m => `
+            <div class="history-item">
+                <div class="item-meta">${m.time} | 分区: ${m.area}</div>
+                <div style="font-size:13px; margin-bottom:5px;">${m.content.substring(0, 100)}${m.content.length > 100 ? '...' : ''}</div>
+                <div style="font-size:11px; opacity:0.5; font-style:italic;">「 ${m.thought} 」</div>
+            </div>
+        `).join('');
+    } else {
+        display.innerText = `[${currentFilter}] 暂无降临`;
+        thought.innerText = "";
+        historyBox.innerHTML = "";
+    }
+}
+
+function manualSync() {
+    const data = {
+        content: document.getElementById('m_content').value,
+        thought: "岛主手动上传资产",
+        area: document.getElementById('m_area').value,
+        color: "#4a9ead"
+    };
+    fetch('/api/sync?token=1314', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    }).then(r=>r.json()).then(d=>{ if(d.ok) { document.getElementById('m_content').value=""; load(); } });
 }
 
 function load(){
     fetch('/api/read').then(r=>r.json()).then(data=>{
-        allData = data; // 存入全局变量
-        if(data[0]) {
-            document.body.style.background = `linear-gradient(180deg, #030a0d 0%, ${data[0].color}10 100%)`;
-            document.documentElement.style.setProperty('--pulse', data[0].color);
-            document.documentElement.style.setProperty('--lake', data[0].color);
-        }
-        renderFeed(); // 渲染
+        allMemories = data;
+        updateDisplay();
     });
 }
+if(document.getElementById('will-content')){ load(); setInterval(load, 15000); }
 </script>
-
-<div class="zone-selector">
-    <button class="zone-btn active" onclick="setZone('全部', this)">全部意志</button>
-    <button class="zone-btn" onclick="setZone('实验室', this)">实验室</button>
-    <button class="zone-btn" onclick="setZone('图书馆', this)">图书馆</button>
-    <button class="zone-btn" onclick="setZone('信箱', this)">信箱</button>
-    <button class="zone-btn" onclick="setZone('唱片行', this)">唱片行</button>
-</div>
+</body>
+</html>
