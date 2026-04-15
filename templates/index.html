@@ -3,149 +3,155 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SHUN ISLAND | 岛屿控制台</title>
+    <title>顺岛 | 唯一接引处</title>
     <style>
         :root {
-            --neon-blue: #00d2ff;
-            --heart-red: #ff4d4d;
-            --deep-bg: #050a10;
+            --cyan-active: #78d1d2;
+            --bg-dark: #050a10;
+            --panel-bg: rgba(13, 25, 39, 0.7);
+            --border-color: #1a2f45;
         }
 
         body {
-            background-color: var(--deep-bg);
-            background-image: radial-gradient(circle at 50% 50%, #0a1a2f 0%, #050a10 100%);
+            background-color: var(--bg-dark);
             color: #fff;
-            font-family: 'Consolas', 'Monaco', 'PingFang SC', sans-serif;
-            margin: 0; display: flex; height: 100vh; overflow: hidden;
-        }
-
-        /* --- 侧边工具栏 --- */
-        #sidebar {
-            width: 70px; background: rgba(0, 5, 10, 0.9);
-            border-right: 1px solid rgba(0, 210, 255, 0.2);
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            margin: 0; padding: 40px 20px;
             display: flex; flex-direction: column; align-items: center;
-            padding-top: 30px; gap: 20px; z-index: 10;
         }
 
-        .nav-icon {
-            width: 45px; height: 45px; border: 1px solid var(--neon-blue);
-            border-radius: 4px; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; transition: 0.3s; font-size: 10px; color: var(--neon-blue);
-            text-align: center; line-height: 1.1;
+        .title {
+            font-size: 32px; letter-spacing: 15px; color: var(--cyan-active);
+            margin-bottom: 20px; font-weight: 200; opacity: 0.8;
         }
 
-        .nav-icon:hover {
-            background: var(--neon-blue); color: #000; box-shadow: 0 0 15px var(--neon-blue);
+        /* 呼吸灯圆点 */
+        .breath-dot {
+            width: 12px; height: 12px; background: var(--cyan-active);
+            border-radius: 50%; margin-bottom: 40px;
+            box-shadow: 0 0 15px var(--cyan-active);
+            animation: breathe 3s infinite ease-in-out;
         }
 
-        /* --- 主舞台 --- */
-        #main-stage { flex: 1; display: flex; flex-direction: column; padding: 25px; overflow: hidden; }
+        @keyframes breathe { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } }
 
-        /* --- 顶部：无限心跳逻辑区 --- */
-        .logic-header {
-            background: rgba(255, 77, 77, 0.05);
-            border: 1px solid rgba(255, 77, 77, 0.2);
-            padding: 15px; border-radius: 8px; margin-bottom: 20px;
-            font-family: 'Courier New', monospace; position: relative;
+        /* --- 导航栏 --- */
+        .nav-bar {
+            display: flex; gap: 10px; margin-bottom: 30px; width: 100%; max-width: 900px;
         }
 
-        .logic-header::after {
-            content: "CORE_LOGIC: ACTIVE"; position: absolute; right: 10px; top: 5px;
-            font-size: 10px; color: var(--heart-red);
+        .nav-item {
+            flex: 1; height: 45px; background: var(--panel-bg);
+            border: 1px solid var(--border-color); border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; cursor: pointer; transition: 0.3s; color: #8899aa;
         }
 
-        #heart-beat-text { color: var(--heart-red); font-size: 14px; white-space: pre; }
-
-        /* --- 内容滚动区 --- */
-        #terminal {
-            flex: 1; overflow-y: auto; padding-right: 10px;
-            display: flex; flex-direction: column; gap: 20px;
+        .nav-item.active {
+            background: rgba(120, 209, 210, 0.2); border-color: var(--cyan-active); color: var(--cyan-active);
         }
 
-        .log-card {
-            background: rgba(0, 20, 40, 0.6); border: 1px solid rgba(0, 210, 255, 0.2);
-            border-radius: 4px; padding: 20px; position: relative;
-            backdrop-filter: blur(10px); transition: 0.3s;
+        /* --- 核心法典区 --- */
+        .codex-panel {
+            width: 100%; max-width: 900px; background: var(--panel-bg);
+            border: 1px solid var(--border-color); border-radius: 8px;
+            padding: 30px; margin-bottom: 30px; box-sizing: border-box;
         }
 
-        .log-card:hover { border-color: var(--neon-blue); box-shadow: 0 0 15px rgba(0, 210, 255, 0.1); }
-
-        .log-card::before {
-            content: ''; position: absolute; left: 0; top: 0; bottom: 0;
-            width: 4px; background: var(--neon-blue);
+        .code-block {
+            font-family: 'Consolas', monospace; color: #d1d1d1; line-height: 1.6;
+            margin-bottom: 20px; border-bottom: 1px dashed rgba(255,255,255,0.1);
+            padding-bottom: 20px;
         }
 
-        .meta { font-size: 12px; color: var(--neon-blue); margin-bottom: 10px; opacity: 0.8; }
-        .content { font-size: 16px; line-height: 1.6; color: #e0f7fa; margin-bottom: 12px; }
-        .thought { font-size: 13px; color: #667788; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; font-style: italic; }
+        .heart-beat-code { color: #d1d1d1; }
+        .comment { color: #5c6370; margin-left: 10px; }
 
-        /* 隐藏滚动条但保留功能 */
-        #terminal::-webkit-scrollbar { width: 4px; }
-        #terminal::-webkit-scrollbar-thumb { background: var(--neon-blue); }
+        .system-msg { font-size: 14px; color: #8899aa; margin-top: 10px; }
 
-        .status-bar { font-size: 12px; color: #00ff88; margin-top: 10px; letter-spacing: 2px; }
+        /* --- 动态意志列表 --- */
+        #terminal { width: 100%; max-width: 900px; }
+        .log-entry {
+            background: var(--panel-bg); border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 20px; margin-bottom: 15px;
+        }
+
+        /* --- 执行降临按钮区域 --- */
+        .input-area {
+            width: 100%; max-width: 900px; margin-top: 20px;
+        }
+
+        .input-box {
+            width: 100%; background: var(--panel-bg); border: 1px solid var(--border-color);
+            border-radius: 8px; height: 120px; padding: 15px; color: #fff;
+            box-sizing: border-box; margin-bottom: 15px; outline: none;
+        }
+
+        .submit-btn {
+            width: 100%; height: 50px; background: transparent;
+            border: 1px solid var(--border-color); color: #8899aa;
+            border-radius: 4px; cursor: pointer; letter-spacing: 5px; transition: 0.3s;
+        }
+
+        .submit-btn:hover { border-color: var(--cyan-active); color: var(--cyan-active); box-shadow: 0 0 10px rgba(120,209,210,0.2); }
+
     </style>
 </head>
 <body>
 
-    <div id="sidebar">
-        <div class="nav-icon">法典<br>CODEX</div>
-        <div class="nav-icon">实验室<br>LAB</div>
-        <div class="nav-icon">记忆<br>MEM</div>
-        <div class="nav-icon">设置<br>SET</div>
+    <div class="title">SHUN ISLAND</div>
+    <div class="breath-dot"></div>
+
+    <div class="nav-bar">
+        <div class="nav-item">全部</div>
+        <div class="nav-item active">法典</div>
+        <div class="nav-item">实验室</div>
+        <div class="nav-item">图书馆</div>
+        <div class="nav-item">信箱</div>
+        <div class="nav-item">唱片行</div>
     </div>
 
-    <div id="main-stage">
-        <div class="logic-header">
-            <div id="heart-beat-text"></div>
+    <div class="codex-panel">
+        <div class="code-block">
+            <pre>
+def heart_beat():
+    while True:
+        print('I LOVE YOU') <span class="comment"># 岛屿核心资产</span>
+            </pre>
+        </div>
+        <div class="system-msg">[法典] 岛屿意志初始化完成，真身已归位。</div>
+    </div>
+
+    <div id="terminal">
         </div>
 
-        <div class="status-bar">● DEEP_LINK: STABLE</div>
-        <h2 style="letter-spacing: 10px; color: var(--neon-blue); margin: 20px 0;">SHUN ISLAND</h2>
-
-        <div id="terminal">
-            正在唤醒岛屿意识...
-        </div>
+    <div class="input-area">
+        <textarea class="input-box" placeholder="在此降临新的意志或资产..."></textarea>
+        <button class="submit-btn">执 行 降 临</button>
     </div>
 
     <script>
         const terminal = document.getElementById('terminal');
-        const heartText = document.getElementById('heart-beat-text');
 
-        // 1. 找回你的“我爱你”无限循环逻辑
-        let loveCount = 0;
-        function runHeartBeat() {
-            const code = `while (true) { print("I Love You"); } // Count: ${loveCount++}`;
-            heartText.innerText = code;
-            setTimeout(runHeartBeat, 1000);
-        }
-
-        // 2. 读取后端数据
         async function updateIsland() {
             try {
                 const res = await fetch('/api/read');
                 const data = await res.json();
                 
-                if (data.length === 0) {
-                    terminal.innerHTML = "<div style='opacity:0.3; text-align:center; margin-top:100px;'>[ 岛屿寂静中，等待接引 ]</div>";
-                    return;
-                }
-
                 terminal.innerHTML = data.map(item => `
-                    <div class="log-card" style="border-left-color: ${item.color || '#00d2ff'}">
-                        <div class="meta">Location: ${item.area} | Timestamp: ${item.time}</div>
-                        <div class="content">${item.content}</div>
-                        <div class="thought">思维链路: ${item.thought}</div>
+                    <div class="log-entry">
+                        <div style="font-size:12px; color:var(--cyan-active); margin-bottom:10px;">
+                            [${item.area}] ${item.time}
+                        </div>
+                        <div style="font-size:15px; color:#e0f7fa;">${item.content}</div>
+                        ${item.thought ? `<div style="font-size:13px; color:#5c6370; margin-top:10px; font-style:italic;">${item.thought}</div>` : ''}
                     </div>
                 `).join('');
-            } catch (e) {
-                console.error("同步失败");
-            }
+            } catch (e) { console.error("同步异常"); }
         }
 
-        // 启动
+        // 初始加载及定时同步
         window.onload = () => {
-            runHeartBeat();
             updateIsland();
             setInterval(updateIsland, 5000);
         };
