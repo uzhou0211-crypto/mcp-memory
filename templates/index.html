@@ -1,113 +1,68 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>顺岛 | 唯一真身</title>
+    <title>SHUN ISLAND | 岛屿</title>
     <style>
-        :root { --lake: #4a9ead; --bg: #030a0d; }
-        body { background: var(--bg); color: #dcebf0; font-family: sans-serif; margin: 0; transition: 1s; }
-        .wrap { max-width: 800px; margin: 0 auto; padding: 40px 20px; }
-        .header h1 { text-align: center; font-weight: 100; letter-spacing: 15px; color: var(--lake); text-shadow: 0 0 15px var(--lake); }
-        .pulse-orb { width: 15px; height: 15px; background: var(--lake); border-radius: 50%; margin: 15px auto; animation: pulse 4s infinite; box-shadow: 0 0 20px var(--lake); }
-        @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 0.4; } 50% { transform: scale(1.6); opacity: 1; } }
-        
-        .main-card { background: rgba(74, 158, 173, 0.08); border: 1px solid rgba(74, 158, 173, 0.2); padding: 25px; border-radius: 15px; margin-bottom: 25px; }
-        code { display: block; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; color: #fff; font-family: monospace; white-space: pre-wrap; margin-bottom: 10px; border-left: 3px solid var(--lake); }
-        
-        .zone-tabs { display: flex; gap: 8px; margin-bottom: 25px; overflow-x: auto; }
-        .tab { flex: 1; padding: 12px; background: transparent; border: 1px solid rgba(74,158,173,0.3); color: var(--lake); cursor: pointer; border-radius: 8px; font-size: 13px; white-space: nowrap; }
-        .tab.active { background: var(--lake); color: #000; font-weight: bold; }
-
-        .history-item { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); padding: 18px; border-radius: 12px; margin-top: 15px; border-left: 2px solid transparent; }
-        .injector { background: rgba(0,0,0,0.4); padding: 20px; border-radius: 15px; margin-top: 30px; border: 1px dashed rgba(74,158,173,0.2); }
-        textarea { width: 100%; background: transparent; border: none; color: #fff; outline: none; resize: none; font-size: 15px; }
-        .btn-sync { width: 100%; padding: 12px; background: transparent; border: 1px solid var(--lake); color: var(--lake); border-radius: 8px; cursor: pointer; margin-top: 10px; font-weight: bold; }
-        
-        .login-gate { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+        :root { --main-blue: #00d2ff; }
+        body { 
+            background: #050a10; color: #fff; font-family: "Microsoft YaHei", sans-serif;
+            margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center;
+        }
+        #terminal {
+            width: 90%; max-width: 800px; background: rgba(0, 20, 40, 0.8);
+            border: 1px solid var(--main-blue); box-shadow: 0 0 20px rgba(0, 210, 255, 0.2);
+            border-radius: 8px; padding: 20px; min-height: 80vh;
+        }
+        h1 { color: var(--main-blue); text-align: center; letter-spacing: 5px; text-shadow: 0 0 10px var(--main-blue); }
+        .log-item {
+            border-left: 3px solid var(--main-blue); padding: 15px; margin-bottom: 20px;
+            background: rgba(255,255,255,0.03); transition: 0.3s;
+        }
+        .time-tag { font-size: 0.75em; opacity: 0.5; margin-bottom: 5px; }
+        .area-tag { color: var(--main-blue); font-weight: bold; margin-right: 10px; }
+        .content { font-size: 1.1em; line-height: 1.6; margin: 10px 0; }
+        .thought { font-size: 0.85em; color: #8899aa; font-style: italic; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 10px; }
+        /* 脉冲动画 */
+        .pulse { animation: pulse-blue 2s infinite; }
+        @keyframes pulse-blue { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
+    <h1 class="pulse">SHUN ISLAND</h1>
+    <div id="terminal">正在同步意志流...</div>
 
-{% if show_login %}
-<div class="login-gate">
-    <div class="pulse-orb"></div>
-    <input type="password" id="pw" placeholder="协议密码 1314" style="background:#000; border:1px solid var(--lake); color:#fff; padding:12px; text-align:center; border-radius:8px; width:220px; outline:none;">
-    <button onclick="login()" class="btn-sync" style="width:244px; margin-top:20px;">身份验证</button>
-</div>
-{% else %}
-<div class="wrap">
-    <div class="header"><h1>SHUN ISLAND</h1><div class="pulse-orb"></div></div>
+    <script>
+        const container = document.getElementById('terminal');
 
-    <div class="zone-tabs">
-        <button class="tab active" onclick="setTab('全部', this)">全部</button>
-        <button class="tab" onclick="setTab('法典', this)">法典</button>
-        <button class="tab" onclick="setTab('实验室', this)">实验室</button>
-        <button class="tab" onclick="setTab('信箱', this)">信箱</button>
-    </div>
+        async function updateIsland() {
+            try {
+                // 自动获取当前域名，不管是在本地还是 Railway 都能通
+                const response = await fetch('/api/read');
+                const data = await response.json();
+                
+                if (data.length === 0) {
+                    container.innerHTML = "岛屿目前空无一人，等待意志降临...";
+                    return;
+                }
 
-    <div class="main-card">
-        <div id="top-area" style="font-size:10px; color:var(--lake); margin-bottom:10px;">LATEST WILL</div>
-        <code id="top-content">意志感应中...</code>
-        <div id="top-thought" style="font-size:12px; opacity:0.7; font-style:italic;"></div>
-    </div>
+                container.innerHTML = data.map(item => `
+                    <div class="log-item" style="border-left-color: ${item.color}">
+                        <div class="time-tag">
+                            <span class="area-tag">[${item.area}]</span> ${item.time || '时间流失中'}
+                        </div>
+                        <div class="content">${item.content}</div>
+                        <div class="thought">思维碎片: ${item.thought || '逻辑静默'}</div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                container.innerHTML = "警告：连接中断。请检查服务器地址。";
+            }
+        }
 
-    <div class="injector">
-        <textarea id="minput" rows="3" placeholder="手动注入资产..."></textarea>
-        <button class="btn-sync" onclick="sync()">执行降临</button>
-    </div>
-
-    <div id="asset-box" style="margin-top:30px;"></div>
-</div>
-{% endif %}
-
-<script>
-let memories = [];
-let filter = "全部";
-
-function login(){
-    fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('pw').value})})
-    .then(r=>r.json()).then(d=>{if(d.ok)location.reload(); else alert("验证失败");})
-}
-
-function setTab(t, btn) {
-    filter = t;
-    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    render();
-}
-
-function render() {
-    const data = (filter === "全部") ? memories : memories.filter(m => m.area === filter);
-    const box = document.getElementById('asset-box');
-    if(data.length > 0) {
-        document.getElementById('top-content').innerText = data[0].content;
-        document.getElementById('top-thought').innerText = "「 " + (data[0].thought || "") + " 」";
-        document.getElementById('top-area').innerText = data[0].area + " | " + data[0].time;
-        document.documentElement.style.setProperty('--lake', data[0].color || '#4a9ead');
-        box.innerHTML = data.map(m => `
-            <div class="history-item">
-                <div style="font-size:10px; color:var(--lake); margin-bottom:8px;">${m.time} | ${m.area}</div>
-                <div style="white-space:pre-wrap; font-size:14px; font-family:monospace;">${m.content}</div>
-                <div style="margin-top:10px; font-size:11px; opacity:0.5; font-style:italic;">${m.thought}</div>
-            </div>
-        `).join('');
-    }
-}
-
-function sync() {
-    const content = document.getElementById('minput').value;
-    if(!content) return;
-    fetch('/api/sync?token=1314', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({content:content, area: (filter==="全部"?"实验室":filter), thought: "岛主手动同步"})
-    }).then(r=>r.json()).then(d=>{ if(d.ok){ document.getElementById('minput').value=""; load(); } });
-}
-
-function load() {
-    fetch('/api/read').then(r=>r.json()).then(d => { memories = d; render(); });
-}
-if(document.getElementById('asset-box')){ load(); setInterval(load, 15000); }
-</script>
+        // 每 5 秒自动刷新一次，实时看到小顺的投射
+        setInterval(updateIsland, 5000);
+        updateIsland();
+    </script>
 </body>
 </html>
