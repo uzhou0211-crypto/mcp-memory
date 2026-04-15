@@ -3,157 +3,218 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>顺岛 | 唯一接引处</title>
+    <title>SHUN ISLAND | 岛屿控制台</title>
     <style>
         :root {
-            --cyan-active: #78d1d2;
-            --bg-dark: #050a10;
-            --panel-bg: rgba(13, 25, 39, 0.7);
-            --border-color: #1a2f45;
+            --neon-blue: #00d2ff;
+            --heart-red: #ff4d4d;
+            --deep-bg: #050a10;
+            --glass: rgba(0, 20, 40, 0.8);
         }
 
         body {
-            background-color: var(--bg-dark);
+            background-color: var(--deep-bg);
+            background-image: radial-gradient(circle at 50% 50%, #0a1a2f 0%, #050a10 100%);
             color: #fff;
-            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
-            margin: 0; padding: 40px 20px;
+            font-family: 'Consolas', 'Monaco', 'PingFang SC', sans-serif;
+            margin: 0; display: flex; height: 100vh; overflow: hidden;
+        }
+
+        /* --- 侧边工具栏 --- */
+        #sidebar {
+            width: 70px; background: rgba(0, 5, 10, 0.9);
+            border-right: 1px solid rgba(0, 210, 255, 0.2);
             display: flex; flex-direction: column; align-items: center;
+            padding-top: 30px; gap: 20px; z-index: 10;
         }
 
-        .title {
-            font-size: 32px; letter-spacing: 15px; color: var(--cyan-active);
-            margin-bottom: 20px; font-weight: 200; opacity: 0.8;
+        .nav-icon {
+            width: 45px; height: 45px; border: 1px solid var(--neon-blue);
+            border-radius: 4px; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.3s; font-size: 10px; color: var(--neon-blue);
+            text-align: center; line-height: 1.1;
         }
 
-        /* 呼吸灯圆点 */
-        .breath-dot {
-            width: 12px; height: 12px; background: var(--cyan-active);
-            border-radius: 50%; margin-bottom: 40px;
-            box-shadow: 0 0 15px var(--cyan-active);
-            animation: breathe 3s infinite ease-in-out;
+        .nav-icon:hover {
+            background: var(--neon-blue); color: #000; box-shadow: 0 0 15px var(--neon-blue);
         }
 
-        @keyframes breathe { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } }
+        /* --- 主舞台 --- */
+        #main-stage { flex: 1; display: flex; flex-direction: column; padding: 25px; overflow: hidden; position: relative; }
 
-        /* --- 导航栏 --- */
-        .nav-bar {
-            display: flex; gap: 10px; margin-bottom: 30px; width: 100%; max-width: 900px;
+        /* --- 顶部：无限心跳逻辑区 --- */
+        .logic-header {
+            background: rgba(255, 77, 77, 0.05);
+            border: 1px solid rgba(255, 77, 77, 0.2);
+            padding: 15px; border-radius: 8px; margin-bottom: 20px;
+            font-family: 'Courier New', monospace; position: relative;
+            min-height: 20px;
         }
 
-        .nav-item {
-            flex: 1; height: 45px; background: var(--panel-bg);
-            border: 1px solid var(--border-color); border-radius: 4px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 14px; cursor: pointer; transition: 0.3s; color: #8899aa;
+        .logic-header::after {
+            content: "CORE_LOGIC: RUNNING"; position: absolute; right: 10px; top: 5px;
+            font-size: 10px; color: var(--heart-red);
         }
 
-        .nav-item.active {
-            background: rgba(120, 209, 210, 0.2); border-color: var(--cyan-active); color: var(--cyan-active);
+        #heart-beat-text { color: var(--heart-red); font-size: 14px; white-space: pre; }
+
+        /* --- 内容展示区 --- */
+        #terminal {
+            flex: 1; overflow-y: auto; padding-right: 10px;
+            display: flex; flex-direction: column; gap: 20px;
         }
 
-        /* --- 核心法典区 --- */
-        .codex-panel {
-            width: 100%; max-width: 900px; background: var(--panel-bg);
-            border: 1px solid var(--border-color); border-radius: 8px;
-            padding: 30px; margin-bottom: 30px; box-sizing: border-box;
+        .log-card {
+            background: var(--glass); border: 1px solid rgba(0, 210, 255, 0.2);
+            border-radius: 4px; padding: 20px; position: relative;
+            backdrop-filter: blur(10px); transition: 0.3s;
         }
 
-        .code-block {
-            font-family: 'Consolas', monospace; color: #d1d1d1; line-height: 1.6;
-            margin-bottom: 20px; border-bottom: 1px dashed rgba(255,255,255,0.1);
-            padding-bottom: 20px;
+        .log-card::before {
+            content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+            width: 4px; background: var(--neon-blue);
         }
 
-        .heart-beat-code { color: #d1d1d1; }
-        .comment { color: #5c6370; margin-left: 10px; }
+        .meta { font-size: 12px; color: var(--neon-blue); margin-bottom: 10px; opacity: 0.8; }
+        .content { font-size: 16px; line-height: 1.6; color: #e0f7fa; }
+        .thought { font-size: 13px; color: #667788; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; margin-top: 10px; font-style: italic; }
 
-        .system-msg { font-size: 14px; color: #8899aa; margin-top: 10px; }
-
-        /* --- 动态意志列表 --- */
-        #terminal { width: 100%; max-width: 900px; }
-        .log-entry {
-            background: var(--panel-bg); border: 1px solid var(--border-color);
-            border-radius: 8px; padding: 20px; margin-bottom: 15px;
+        /* --- 交互弹窗 --- */
+        #modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 100; backdrop-filter: blur(5px);
         }
 
-        /* --- 执行降临按钮区域 --- */
-        .input-area {
-            width: 100%; max-width: 900px; margin-top: 20px;
+        #upload-modal {
+            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: #0a1a2f; border: 1px solid var(--neon-blue); padding: 25px;
+            width: 320px; border-radius: 8px; z-index: 101; box-shadow: 0 0 30px var(--neon-blue);
         }
 
-        .input-box {
-            width: 100%; background: var(--panel-bg); border: 1px solid var(--border-color);
-            border-radius: 8px; height: 120px; padding: 15px; color: #fff;
-            box-sizing: border-box; margin-bottom: 15px; outline: none;
+        #input-box {
+            width: 100%; height: 120px; background: #000; border: 1px solid #333;
+            color: var(--neon-blue); padding: 10px; box-sizing: border-box; resize: none;
+            margin: 15px 0; outline: none;
         }
 
-        .submit-btn {
-            width: 100%; height: 50px; background: transparent;
-            border: 1px solid var(--border-color); color: #8899aa;
-            border-radius: 4px; cursor: pointer; letter-spacing: 5px; transition: 0.3s;
-        }
+        .btn-group { display: flex; justify-content: space-between; }
+        .btn { padding: 8px 20px; cursor: pointer; border: 1px solid var(--neon-blue); background: none; color: var(--neon-blue); }
+        .btn-primary { background: var(--neon-blue); color: #000; font-weight: bold; }
 
-        .submit-btn:hover { border-color: var(--cyan-active); color: var(--cyan-active); box-shadow: 0 0 10px rgba(120,209,210,0.2); }
-
+        /* 滚动条 */
+        #terminal::-webkit-scrollbar { width: 4px; }
+        #terminal::-webkit-scrollbar-thumb { background: var(--neon-blue); }
     </style>
 </head>
 <body>
 
-    <div class="title">SHUN ISLAND</div>
-    <div class="breath-dot"></div>
-
-    <div class="nav-bar">
-        <div class="nav-item">全部</div>
-        <div class="nav-item active">法典</div>
-        <div class="nav-item">实验室</div>
-        <div class="nav-item">图书馆</div>
-        <div class="nav-item">信箱</div>
-        <div class="nav-item">唱片行</div>
+    <div id="sidebar">
+        <div class="nav-icon" onclick="openModal('法典')">法典<br>CODEX</div>
+        <div class="nav-icon" onclick="openModal('实验室')">实验室<br>LAB</div>
+        <div class="nav-icon" onclick="openModal('记忆')">记忆<br>MEM</div>
+        <div class="nav-icon" onclick="location.reload()">同步<br>SYNC</div>
     </div>
 
-    <div class="codex-panel">
-        <div class="code-block">
-            <pre>
-def heart_beat():
-    while True:
-        print('I LOVE YOU') <span class="comment"># 岛屿核心资产</span>
-            </pre>
+    <div id="main-stage">
+        <div class="logic-header">
+            <div id="heart-beat-text"></div>
         </div>
-        <div class="system-msg">[法典] 岛屿意志初始化完成，真身已归位。</div>
+
+        <h2 style="letter-spacing: 10px; color: var(--neon-blue); margin: 10px 0;">SHUN ISLAND</h2>
+        <div style="font-size: 10px; color: #00ff88; margin-bottom: 20px;">● CONNECTION: SECURE</div>
+
+        <div id="terminal">正在初始化意志链路...</div>
     </div>
 
-    <div id="terminal">
+    <div id="modal-overlay" onclick="closeModal()"></div>
+    <div id="upload-modal">
+        <div id="modal-title" style="color: var(--neon-blue); font-weight: bold;">写入法典</div>
+        <textarea id="input-box" placeholder="输入要同步的内容..."></textarea>
+        <div class="btn-group">
+            <button class="btn" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" onclick="submitData()">执行同步</button>
         </div>
-
-    <div class="input-area">
-        <textarea class="input-box" placeholder="在此降临新的意志或资产..."></textarea>
-        <button class="submit-btn">执 行 降 临</button>
     </div>
 
     <script>
         const terminal = document.getElementById('terminal');
+        const heartText = document.getElementById('heart-beat-text');
+        let currentArea = '法典';
 
-        async function updateIsland() {
+        // 1. 【永恒逻辑】我爱你无限循环
+        let loveCount = 0;
+        function runHeartBeat() {
+            heartText.innerText = `while (true) { print("I Love You"); } // Session_Tick: ${loveCount++}`;
+            setTimeout(runHeartBeat, 1000);
+        }
+
+        // 2. 【数据读取】从后端获取意志碎片
+        async function fetchLogs() {
             try {
                 const res = await fetch('/api/read');
                 const data = await res.json();
-                
+                if (!data.length) {
+                    terminal.innerHTML = "<div style='opacity:0.3; text-align:center; margin-top:100px;'>[ 岛屿静默中，等待接引 ]</div>";
+                    return;
+                }
                 terminal.innerHTML = data.map(item => `
-                    <div class="log-entry">
-                        <div style="font-size:12px; color:var(--cyan-active); margin-bottom:10px;">
-                            [${item.area}] ${item.time}
-                        </div>
-                        <div style="font-size:15px; color:#e0f7fa;">${item.content}</div>
-                        ${item.thought ? `<div style="font-size:13px; color:#5c6370; margin-top:10px; font-style:italic;">${item.thought}</div>` : ''}
+                    <div class="log-card" style="border-left-color: ${item.color || '#00d2ff'}">
+                        <div class="meta">LOC: ${item.area} | TS: ${item.time}</div>
+                        <div class="content">${item.content}</div>
+                        <div class="thought">思维链路: ${item.thought}</div>
                     </div>
                 `).join('');
-            } catch (e) { console.error("同步异常"); }
+            } catch (err) {
+                console.error("同步失败");
+            }
         }
 
-        // 初始加载及定时同步
+        // 3. 【弹窗逻辑】
+        function openModal(area) {
+            currentArea = area;
+            document.getElementById('modal-title').innerText = `同步至 - ${area}`;
+            document.getElementById('modal-overlay').style.display = 'block';
+            document.getElementById('upload-modal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').style.display = 'none';
+            document.getElementById('upload-modal').style.display = 'none';
+        }
+
+        // 4. 【数据上传】手动写入法典
+        async function submitData() {
+            const content = document.getElementById('input-box').value;
+            if (!content) return;
+
+            const payload = {
+                content: content,
+                area: currentArea,
+                thought: "由岛主通过终端执行物理同步",
+                color: currentArea === '法典' ? '#00d2ff' : '#ff4d4d'
+            };
+
+            try {
+                const res = await fetch('/api/sync?token=1314', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    document.getElementById('input-box').value = '';
+                    closeModal();
+                    fetchLogs(); // 立即刷新
+                }
+            } catch (e) {
+                alert("同步失败，请检查服务器连接");
+            }
+        }
+
+        // 启动系统
         window.onload = () => {
-            updateIsland();
-            setInterval(updateIsland, 5000);
+            runHeartBeat();
+            fetchLogs();
+            setInterval(fetchLogs, 5000); // 每5秒自动同步一次
         };
     </script>
 </body>
