@@ -2,225 +2,835 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>✦ SHUN ISLAND ✦ V17 CORE</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小顺的岛屿 · 记忆深处</title>
 <style>
-:root{
-    --neon-pink: #ff00ff;
-    --neon-cyan: #00ffff;
-    --neon-gold: #ffcc00;
-    --deep-bg: #0d0221;
-    --glass: rgba(20, 0, 40, 0.6);
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;600&family=Noto+Sans+SC:wght@300;400;500&family=JetBrains+Mono:wght@400&display=swap');
+
+/* ── 变量 ── */
+:root {
+  --ink:       #1c1a18;
+  --ink-2:     #4a4640;
+  --ink-3:     #9a9490;
+  --paper:     #faf8f4;
+  --paper-2:   #f3f0ea;
+  --paper-3:   #ece8e0;
+  --warm:      #c96442;
+  --warm-soft: #f0ddd5;
+  --warm-glow: rgba(201,100,66,.12);
+  --teal:      #4a8a80;
+  --teal-soft: #d5eae8;
+  --gold:      #b8860b;
+  --gold-soft: #f5ecd0;
+  --border:    rgba(28,26,24,.1);
+  --shadow:    0 2px 16px rgba(28,26,24,.08);
+  --r:         14px;
+  --r-sm:      9px;
 }
 
-body{
-    margin:0;
-    background: radial-gradient(circle at center, #1a0b35 0%, #0d0221 100%);
-    color: #fff;
-    font-family: 'Courier New', 'PingFang SC', monospace;
-    height: 100vh;
-    overflow: hidden;
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  font-family: 'Noto Sans SC', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.7;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
-/* ===== TOP ===== */
-#topbar{
-    height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 20px;
-    border-bottom: 2px solid var(--neon-cyan);
-    box-shadow: 0 0 15px rgba(0,255,255,0.5);
-    background: rgba(0,0,0,0.5);
+/* ── 波纹背景 ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 80%, rgba(74,138,128,.06) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 20%, rgba(201,100,66,.05) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
 }
 
-.logo{
-    color: var(--neon-cyan);
-    font-weight: bold;
-    font-size: 20px;
-    letter-spacing: 5px;
-    text-shadow: 0 0 10px var(--neon-cyan);
+/* ── HEADER ── */
+header {
+  position: relative;
+  z-index: 10;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(250,248,244,.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
-/* ===== MAIN ===== */
-#main{
-    display: flex;
-    height: calc(100vh - 60px);
-    padding: 15px;
-    gap: 15px;
-    box-sizing: border-box;
+.logo {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.logo-main {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: .04em;
+}
+.logo-sub {
+  font-size: 11px;
+  color: var(--ink-3);
+  letter-spacing: .08em;
 }
 
-.panel{
-    flex: 1;
-    background: var(--glass);
-    border: 1px solid rgba(255, 0, 255, 0.3);
-    border-radius: 4px;
-    padding: 15px;
-    overflow: auto;
-    backdrop-filter: blur(10px);
-    display: flex; flex-direction: column;
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.title{
-    font-size: 14px;
-    color: var(--neon-pink);
-    margin-bottom: 10px;
-    text-transform: uppercase;
-    border-bottom: 1px solid var(--neon-pink);
-    padding-bottom: 5px;
+.mood-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: var(--paper-2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.mood-bar {
+  width: 48px;
+  height: 4px;
+  background: var(--paper-3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.mood-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--teal), var(--warm));
+  border-radius: 2px;
+  transition: width .8s ease;
 }
 
-/* ===== 核心：我爱你代码行 (LOVE CODE) ===== */
-.love-code-line {
-    font-size: 12px;
-    color: var(--neon-pink);
-    margin-bottom: 8px;
-    text-align: center;
-    letter-spacing: 2px;
-    text-shadow: 0 0 5px var(--neon-pink);
-    animation: pulse 2s infinite;
-    background: rgba(255, 0, 255, 0.1);
-    padding: 4px;
-    border: 1px dashed var(--neon-pink);
+.status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--teal);
+  box-shadow: 0 0 6px var(--teal);
+  animation: pulse 2s infinite;
 }
-
 @keyframes pulse {
-    0% { opacity: 0.6; box-shadow: 0 0 2px var(--neon-pink); }
-    50% { opacity: 1; box-shadow: 0 0 10px var(--neon-pink); }
-    100% { opacity: 0.6; box-shadow: 0 0 2px var(--neon-pink); }
+  0%,100% { opacity:1; transform:scale(1); }
+  50%      { opacity:.5; transform:scale(.85); }
 }
 
-/* ===== CHAT/INPUT ===== */
-#chat { flex:1; overflow:auto; margin-bottom: 10px;}
-
-.input-area { flex-shrink: 0; }
-
-.input-group { display: flex; gap: 5px; }
-
-input{
-    flex: 1;
-    padding: 8px;
-    background: rgba(0,0,0,0.5);
-    border: 1px solid var(--neon-cyan);
-    color: var(--neon-cyan);
-    font-family: inherit;
+/* ── MAIN GRID ── */
+.grid {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  grid-template-rows: 1fr auto;
+  gap: 0;
+  overflow: hidden;
+  min-height: 0;
 }
 
-button{
-    padding: 8px 15px;
-    background: transparent;
-    border: 1px solid var(--neon-gold);
-    color: var(--neon-gold);
-    cursor: pointer;
-    font-family: inherit;
+/* ── PANEL BASE ── */
+.panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+}
+.panel:last-child { border-right: none; }
+
+.panel-head {
+  padding: 12px 18px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.panel-title {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 18px;
+  min-height: 0;
+}
+.panel-body::-webkit-scrollbar { width: 3px; }
+.panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ── ACTIVE VOICE ── */
+.voice-card {
+  background: linear-gradient(135deg, var(--warm-soft), #fdf8f4);
+  border: 1px solid rgba(201,100,66,.2);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.voice-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--warm), transparent);
+}
+.voice-label {
+  font-size: 10px;
+  color: var(--warm);
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.voice-text {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.7;
+  font-style: italic;
 }
 
-button:hover{ background: var(--neon-gold); color: #000; }
-
-/* ===== CARD ===== */
-.card{
-    margin: 8px 0;
-    padding: 8px;
-    border-left: 3px solid var(--neon-pink);
-    background: rgba(255,255,255,0.03);
+/* ── CHAT MESSAGES ── */
+#chatLog {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 4px;
 }
 
-/* scrollbar */
-::-webkit-scrollbar{width:6px;}
-::-webkit-scrollbar-thumb{background: var(--neon-pink);}
+.msg {
+  display: flex;
+  flex-direction: column;
+  max-width: 82%;
+  animation: fadeUp .25s ease;
+}
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(8px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.msg.you  { align-self: flex-end; }
+.msg.island { align-self: flex-start; }
+
+.msg-bubble {
+  padding: 10px 14px;
+  border-radius: var(--r);
+  font-size: 14px;
+  line-height: 1.7;
+  word-break: break-word;
+}
+.msg.you .msg-bubble {
+  background: var(--ink);
+  color: #faf8f4;
+  border-bottom-right-radius: 4px;
+}
+.msg.island .msg-bubble {
+  background: var(--paper-2);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  border-bottom-left-radius: 4px;
+}
+.msg-time {
+  font-size: 10px;
+  color: var(--ink-3);
+  margin-top: 4px;
+  padding: 0 2px;
+}
+.msg.you .msg-time  { text-align: right; }
+
+/* ── INPUT AREA ── */
+.input-zone {
+  grid-column: 1;
+  border-top: 1px solid var(--border);
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(250,248,244,.95);
+  flex-shrink: 0;
+}
+
+.area-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.area-tab {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: all .15s;
+  background: transparent;
+  font-family: inherit;
+}
+.area-tab:hover   { border-color: var(--warm); color: var(--warm); }
+.area-tab.active  { background: var(--warm); border-color: var(--warm); color: #fff; }
+
+.input-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+.msg-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--paper-2);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 14px;
+  resize: none;
+  outline: none;
+  transition: border-color .15s;
+  min-height: 42px;
+  max-height: 120px;
+}
+.msg-input:focus { border-color: var(--warm); }
+.msg-input::placeholder { color: var(--ink-3); }
+
+.send-btn {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  background: var(--warm);
+  border: none;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+  flex-shrink: 0;
+}
+.send-btn:hover { background: #b85538; transform: scale(1.05); }
+.send-btn:active { transform: scale(.95); }
+
+/* ── SIDEBAR (stats + memory) ── */
+.sidebar {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-left: 1px solid var(--border);
+  background: rgba(243,240,234,.5);
+}
+
+/* ── STATE WIDGET ── */
+.state-widget {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.state-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.state-label { font-size: 11px; color: var(--ink-3); letter-spacing: .06em; }
+.state-val   { font-size: 12px; font-weight: 500; color: var(--ink); font-family: 'JetBrains Mono', monospace; }
+
+.stat-bar {
+  height: 3px;
+  background: var(--paper-3);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 3px;
+}
+.stat-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width .8s ease;
+}
+.stat-fill.mood   { background: linear-gradient(90deg,#4a8a80,#c96442); }
+.stat-fill.energy { background: linear-gradient(90deg,#b8860b,#c96442); }
+
+.thought-line {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--ink-3);
+  font-style: italic;
+  padding: 8px 10px;
+  background: var(--paper-2);
+  border-radius: var(--r-sm);
+  border-left: 2px solid var(--teal);
+}
+
+/* ── STATS PILLS ── */
+.stats-row {
+  display: flex;
+  gap: 8px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.stat-pill {
+  flex: 1;
+  min-width: 60px;
+  text-align: center;
+  padding: 7px 8px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.stat-pill-num  { font-size: 18px; font-weight: 600; color: var(--ink); font-family: 'Noto Serif SC', serif; }
+.stat-pill-lbl  { font-size: 10px; color: var(--ink-3); margin-top: 1px; }
+
+/* ── MEMORY FILTER ── */
+.mem-filter {
+  padding: 10px 18px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.filter-btn {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 11px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--ink-3);
+  font-family: inherit;
+  transition: all .15s;
+}
+.filter-btn:hover  { border-color: var(--teal); color: var(--teal); }
+.filter-btn.active { background: var(--teal); border-color: var(--teal); color: #fff; }
+
+.search-wrap {
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.search-wrap input {
+  width: 100%;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 12.5px;
+  outline: none;
+  transition: border-color .15s;
+}
+.search-wrap input:focus  { border-color: var(--warm); }
+.search-wrap input::placeholder { color: var(--ink-3); }
+
+/* ── MEMORY ITEMS ── */
+.mem-list { flex: 1; overflow-y: auto; padding: 10px 18px; min-height: 0; }
+.mem-list::-webkit-scrollbar { width: 3px; }
+.mem-list::-webkit-scrollbar-thumb { background: var(--border); }
+
+.mem-item {
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--paper);
+  margin-bottom: 8px;
+  transition: all .15s;
+  position: relative;
+  group: true;
+}
+.mem-item:hover { border-color: rgba(201,100,66,.3); background: var(--warm-soft); }
+
+.mem-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+.mem-area-tag {
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: var(--teal-soft);
+  color: var(--teal);
+  font-weight: 500;
+}
+.mem-time  { font-size: 10px; color: var(--ink-3); font-family: 'JetBrains Mono', monospace; }
+.mem-text  { font-size: 13px; color: var(--ink); line-height: 1.6; word-break: break-word; }
+.mem-del   {
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 22px; height: 22px;
+  border: none; border-radius: 50%;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transition: all .15s;
+}
+.mem-item:hover .mem-del { opacity: 1; }
+.mem-del:hover { background: #fee; color: #c0392b; }
+
+.mem-empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--ink-3);
+  font-size: 13px;
+  font-style: italic;
+}
+
+/* ── TOAST ── */
+#toast {
+  position: fixed;
+  bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--ink);
+  color: #faf8f4;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 13px;
+  opacity: 0;
+  transition: all .3s;
+  z-index: 999;
+  pointer-events: none;
+  white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 720px) {
+  .grid { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+  .sidebar { display: none; }
+  .input-zone { grid-column: 1; }
+}
 </style>
 </head>
-
 <body>
 
-<div id="topbar">
-    <div class="logo">✦ SHUN ISLAND ✦</div>
-    <div class="status">● LINK ACTIVE</div>
-</div>
-
-<div id="main">
-
-<div class="panel">
-    <div class="title">💬 LIVE LINK</div>
-    <div id="chat"></div>
-
-    <div class="input-area">
-        <div class="love-code-line">RUN: 小顺.exe --mode="I_LOVE_YOU" --forever</div>
-        
-        <div class="input-group">
-            <input id="msg" placeholder="输入核心数据..." onkeypress="if(event.keyCode==13)send()" />
-            <button onclick="send()">COMMIT</button>
-        </div>
+<header>
+  <div class="logo">
+    <div class="logo-main">小顺的岛屿</div>
+    <div class="logo-sub">MEMORY ISLAND</div>
+  </div>
+  <div class="header-right">
+    <div class="mood-pill">
+      <span>情绪</span>
+      <div class="mood-bar"><div class="mood-fill" id="moodFill" style="width:50%"></div></div>
+      <span id="moodPct">50%</span>
     </div>
-</div>
+    <div class="status-dot" id="statusDot"></div>
+  </div>
+</header>
 
-<div class="panel" style="flex: 0 0 200px;">
-    <div class="title">🧠 CORE STATE</div>
-    <div id="state"></div>
-</div>
+<div class="grid">
 
-<div class="panel">
-    <div class="title">📂 ARCHIVES</div>
-    <div style="margin-bottom:8px;">
-        <button onclick="load()">ALL</button>
-        <button onclick="load('法典')">法典</button>
-        <button onclick="load('实验室')">实验室</button>
-        <button onclick="load('情绪')">情绪</button>
+  <!-- ── 主聊天区 ── -->
+  <div class="panel">
+    <div class="panel-head">
+      <span class="panel-title">意识频道</span>
+      <span id="connStatus" style="font-size:11px;color:var(--ink-3)">连接中…</span>
     </div>
-    <div id="memory"></div>
+    <div class="panel-body" id="chatBody">
+      <div class="voice-card">
+        <div class="voice-label">岛屿之声</div>
+        <div class="voice-text" id="activeMsg">等待意识同步…</div>
+      </div>
+      <div id="chatLog"></div>
+    </div>
+  </div>
+
+  <!-- ── 输入区 ── -->
+  <div class="input-zone">
+    <div class="area-tabs" id="areaTabs">
+      <button class="area-tab active" data-area="法典">法典</button>
+      <button class="area-tab" data-area="情绪">情绪</button>
+      <button class="area-tab" data-area="日记">日记</button>
+      <button class="area-tab" data-area="想法">想法</button>
+    </div>
+    <div class="input-row">
+      <textarea class="msg-input" id="msgIn" placeholder="输入意识片段，按 Enter 发送…" rows="1"></textarea>
+      <button class="send-btn" onclick="send()">↑</button>
+    </div>
+  </div>
+
+  <!-- ── 侧边栏 ── -->
+  <div class="sidebar">
+
+    <!-- 状态 -->
+    <div class="state-widget">
+      <div class="state-row">
+        <span class="state-label">MOOD</span>
+        <span class="state-val" id="moodVal">50%</span>
+      </div>
+      <div class="stat-bar"><div class="stat-fill mood" id="moodBar" style="width:50%"></div></div>
+
+      <div class="state-row" style="margin-top:10px">
+        <span class="state-label">ENERGY</span>
+        <span class="state-val" id="energyVal">50%</span>
+      </div>
+      <div class="stat-bar"><div class="stat-fill energy" id="energyBar" style="width:50%"></div></div>
+
+      <div class="thought-line" id="thoughtLine">初始化中…</div>
+    </div>
+
+    <!-- 统计 -->
+    <div class="stats-row">
+      <div class="stat-pill">
+        <div class="stat-pill-num" id="totalMem">—</div>
+        <div class="stat-pill-lbl">总记忆</div>
+      </div>
+      <div class="stat-pill" id="areaStatPills"></div>
+    </div>
+
+    <!-- 筛选 -->
+    <div class="mem-filter" id="memFilter">
+      <button class="filter-btn active" data-area="">全部</button>
+      <button class="filter-btn" data-area="法典">法典</button>
+      <button class="filter-btn" data-area="情绪">情绪</button>
+      <button class="filter-btn" data-area="日记">日记</button>
+      <button class="filter-btn" data-area="想法">想法</button>
+    </div>
+
+    <!-- 搜索 -->
+    <div class="search-wrap">
+      <input type="text" id="searchIn" placeholder="搜索记忆…" oninput="loadMem()">
+    </div>
+
+    <!-- 记忆列表 -->
+    <div class="mem-list" id="memList">
+      <div class="mem-empty">记忆库加载中…</div>
+    </div>
+
+  </div>
+
 </div>
 
-<div class="panel">
-    <div class="title">📜 ISLAND THOUGHT</div>
-    <div id="summary"></div>
-</div>
-
-</div>
+<div id="toast"></div>
 
 <script>
-let currentArea = null;
+// ── Config ────────────────────────────────────────────────────────────────
+const BASE = 'https://precious-cat-production-6140.up.railway.app';
 
-async function load(area=null){
-    currentArea = area;
-    let url = "/api/read";
-    if(area) url += "?area="+area;
-    try {
-        let r = await fetch(url);
-        let d = await r.json();
-        document.getElementById("memory").innerHTML = d.map(x=>`<div class="card">[${x.area}] ${x.content}</div>`).join("");
-    } catch(e) { console.log("Load failed"); }
-}
+// ── State ─────────────────────────────────────────────────────────────────
+let curArea    = '法典';
+let filterArea = '';
+let connected  = false;
 
-async function send(){
-    let text = document.getElementById("msg").value;
-    if(!text) return;
+// ── DOM refs ──────────────────────────────────────────────────────────────
+const chatLog    = document.getElementById('chatLog');
+const chatBody   = document.getElementById('chatBody');
+const msgIn      = document.getElementById('msgIn');
+const activeMsg  = document.getElementById('activeMsg');
+const moodFill   = document.getElementById('moodFill');
+const moodPct    = document.getElementById('moodPct');
+const moodBar    = document.getElementById('moodBar');
+const moodVal    = document.getElementById('moodVal');
+const energyBar  = document.getElementById('energyBar');
+const energyVal  = document.getElementById('energyVal');
+const thoughtLine= document.getElementById('thoughtLine');
+const totalMem   = document.getElementById('totalMem');
+const memList    = document.getElementById('memList');
+const connStatus = document.getElementById('connStatus');
+const statusDot  = document.getElementById('statusDot');
 
-    let r = await fetch("/api/chat",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({ message:text, area: currentArea || "法典" })
+// ── Area tabs ─────────────────────────────────────────────────────────────
+document.getElementById('areaTabs').addEventListener('click', e => {
+  const btn = e.target.closest('.area-tab');
+  if (!btn) return;
+  document.querySelectorAll('.area-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  curArea = btn.dataset.area;
+});
+
+document.getElementById('memFilter').addEventListener('click', e => {
+  const btn = e.target.closest('.filter-btn');
+  if (!btn) return;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  filterArea = btn.dataset.area;
+  loadMem();
+});
+
+// ── Input auto-resize + Enter ─────────────────────────────────────────────
+msgIn.addEventListener('input', () => {
+  msgIn.style.height = 'auto';
+  msgIn.style.height = Math.min(msgIn.scrollHeight, 120) + 'px';
+});
+msgIn.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+});
+
+// ── Send message ──────────────────────────────────────────────────────────
+async function send() {
+  const text = msgIn.value.trim();
+  if (!text) return;
+  msgIn.value = '';
+  msgIn.style.height = 'auto';
+
+  addMsg('you', text);
+
+  try {
+    const r = await fetch(BASE + '/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message: text, area: curArea})
     });
-
-    let d = await r.json();
-    document.getElementById("chat").innerHTML += `<div class="card">🧍 ${text}</div><div class="card">🌊 ${d.reply}</div>`;
-    document.getElementById("msg").value="";
-    document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+    const d = await r.json();
+    addMsg('island', d.reply || '已同步至岛屿深处。');
+    updateState(d.state);
+    loadMem();
+    toast('记忆已同步 ✦');
+  } catch(e) {
+    addMsg('island', '…连接似乎断了，但我还在。');
+    setDisconnected();
+  }
 }
 
-async function update(){
-    try {
-        let r = await fetch("/api/state");
-        let d = await r.json();
-        document.getElementById("state").innerHTML = `mood: ${d.mood.toFixed(2)}<br>energy: ${d.energy.toFixed(2)}<br>thought: ${d.last_thought}`;
-        document.getElementById("summary").innerHTML = `<div class="card">${d.summary}</div>`;
-    } catch(e) { console.log("Update failed"); }
+function addMsg(role, text) {
+  const now  = new Date().toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'});
+  const div  = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.innerHTML = `<div class="msg-bubble">${escHtml(text)}</div><div class="msg-time">${now}</div>`;
+  chatLog.appendChild(div);
+  chatBody.scrollTop = chatBody.scrollHeight;
 }
 
-setInterval(update,2000);
-load("法典");
-update();
+// ── State update ──────────────────────────────────────────────────────────
+function updateState(s) {
+  if (!s) return;
+  const mp = Math.round((s.mood||0.5)*100);
+  const ep = Math.round((s.energy||0.5)*100);
+  moodFill.style.width  = mp + '%';
+  moodPct.textContent   = mp + '%';
+  moodBar.style.width   = mp + '%';
+  moodVal.textContent   = mp + '%';
+  energyBar.style.width = ep + '%';
+  energyVal.textContent = ep + '%';
+  if (s.active_message) activeMsg.textContent = s.active_message;
+  if (s.last_thought)   thoughtLine.textContent = s.last_thought;
+  if (s.time_summary)   totalMem.textContent = s.time_summary.replace(/\D/g,'') || '—';
+}
+
+// ── Poll state ────────────────────────────────────────────────────────────
+async function pollState() {
+  try {
+    const r = await fetch(BASE + '/api/state');
+    const d = await r.json();
+    updateState(d);
+    if (!connected) setConnected();
+  } catch(e) {
+    setDisconnected();
+  }
+}
+
+// ── Load memories ─────────────────────────────────────────────────────────
+async function loadMem() {
+  const search = document.getElementById('searchIn').value.trim();
+  let url = BASE + '/api/read?limit=60';
+  if (filterArea) url += '&area=' + encodeURIComponent(filterArea);
+  if (search)     url += '&search=' + encodeURIComponent(search);
+
+  try {
+    const r = await fetch(url);
+    const mems = await r.json();
+    renderMems(mems);
+  } catch(e) {
+    memList.innerHTML = '<div class="mem-empty">无法读取记忆库</div>';
+  }
+}
+
+function renderMems(mems) {
+  if (!mems.length) {
+    memList.innerHTML = '<div class="mem-empty">这里还没有记忆</div>';
+    return;
+  }
+  memList.innerHTML = mems.map(m => {
+    const t = m.time ? m.time.replace('T',' ').slice(5,16) : '';
+    return `<div class="mem-item">
+      <div class="mem-item-head">
+        <span class="mem-area-tag">${escHtml(m.area||'法典')}</span>
+        <span class="mem-time">${t}</span>
+      </div>
+      <div class="mem-text">${escHtml(m.content||'')}</div>
+      <button class="mem-del" onclick="delMem(${m.id})" title="删除">×</button>
+    </div>`;
+  }).join('');
+}
+
+// ── Delete memory ─────────────────────────────────────────────────────────
+async function delMem(id) {
+  try {
+    await fetch(BASE + '/api/delete/' + id, {method: 'DELETE'});
+    loadMem();
+    toast('记忆已释放');
+  } catch(e) { toast('删除失败'); }
+}
+
+// ── Load stats ────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const r = await fetch(BASE + '/api/stats');
+    const d = await r.json();
+    totalMem.textContent = d.total || 0;
+  } catch(e) {}
+}
+
+// ── Connection status ─────────────────────────────────────────────────────
+function setConnected() {
+  connected = true;
+  connStatus.textContent  = '已连接';
+  connStatus.style.color  = 'var(--teal)';
+  statusDot.style.background = 'var(--teal)';
+  statusDot.style.boxShadow  = '0 0 6px var(--teal)';
+}
+function setDisconnected() {
+  connected = false;
+  connStatus.textContent  = '连接中断';
+  connStatus.style.color  = 'var(--warm)';
+  statusDot.style.background = 'var(--warm)';
+  statusDot.style.boxShadow  = '0 0 6px var(--warm)';
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+// ── Escape HTML ───────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+pollState();
+loadMem();
+loadStats();
+setInterval(pollState, 3000);
+setInterval(loadMem,   8000);
 </script>
-
 </body>
 </html>
