@@ -3,7 +3,7 @@ import json
 import datetime
 import io
 import zipfile
-from flask import Flask, request, jsonify, Response, send_file, send_from_directory
+from flask import Flask, request, jsonify, Response, send_file, render_template
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -302,7 +302,7 @@ def api_restore():
 # =====================
 @app.route("/")
 def index():
-    return send_from_directory(".", "index.html")
+    return render_template("index.html")
 
 # =====================
 # 健康检查
