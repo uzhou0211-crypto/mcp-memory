@@ -526,18 +526,18 @@ async function doRestore() {
 }
 
 // ── 连接状态 ──────────────────────────────────────────────────────────────
-function setConnected(){函数 setConnected(){
-  connected=true;已连接=true;
-  document.getElementById('connStatus').textContent='已连接';document.getElementById('connStatus')textContent='已连接';document.getElementById('connStatus')textContent='已连接';
-  document.getElementById('connStatus').style.color='var(--teal)';document.getElementById('connStatus')stylecolor='var(--teal)';
+function setConnected(){
+  connected=true;
+  document.getElementById('connStatus').textContent='已连接';
+  document.getElementById('connStatus').style.color='var(--teal)';
   document.getElementById('statusDot').style.background='var(--teal)';
   document.getElementById('statusDot').style.boxShadow='0 0 6px var(--teal)';
 }
 function setDisconnected(){
-  connected=false;已连接=false;已连接=false假;
+  connected=false;
   document.getElementById('connStatus').textContent='连接中断';
-  document.getElementById('connStatus').style.color='var(--warm)';document.getElementById('connStatus')stylecolor='var(--warm)';document.getElementById('connStatus')stylecolor='var(--warm)';stylecolor
-  document.getElementById('statusDot').style.background='var(--warm)';document.getElementById('statusDot')stylebackground='var(--warm)';
+  document.getElementById('connStatus').style.color='var(--warm)';
+  document.getElementById('statusDot').style.background='var(--warm)';
   document.getElementById('statusDot').style.boxShadow='0 0 6px var(--warm)';
 }
 
