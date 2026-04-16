@@ -470,14 +470,14 @@ def api_restore():
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM memories")
                 for m in mems:用于内存中：
-                    cur.execute执行(当前执行(当前执行
-                        "INSERT INTO memories (content,area,tags) VALUES (%s,%s,%s)",
-                        (m.get("content",""),m.get("area","法典"),m.get("tags",""))m.get("content",""),m.get("area",“法典”),m.get(“tags”,""))
+                    cur.execute(当前执行(
+                        "INSERT INTO memories (content,area,tags) VALUES (%s,%s,%s)"“INSERT INTO memories (content,area,tags) VALUES (%s,%s,%s)”,
+                        (m.get("content",""),m.get("area","法典"),m.get("tags",""))
                     )
             conn.commit()连接提交()连接.提交()连接提交()
         return jsonify({"restored": len(mems)})
     except Exception as e:
-        return jsonify({"error": str(e)}), 400returnjsonify("error":stre),400
+        return jsonify({"error": str(e)}), 400returnjsonify("error":stre),400返回 jsonify({"错误": str(e)}), 400returnjsonify("错误":stre),400
 
 # =====================
 # 前端 + 健康检查
@@ -501,4 +501,4 @@ if __name__ == "__main__":
     init_db()
     threading.Thread(target=update_decay_job,  daemon=True).start()
     threading.Thread(target=surface_memory_job, daemon=True).start()
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT",3000)), threaded=True)app.run运行(应用.run(host="0.0.0.0"主机="0.0.0.0", port=int整数(, 端口=int(os.environ环境.get(("PORT"),3000))操作系统.environ.get(("PORT"),3000)), threaded=True)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT",3000)), threaded=True)app.run(host="0.0.0.0", port=int(os.environ.get(("PORT"),3000)), threaded=True)
