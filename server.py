@@ -11,7 +11,7 @@ app = Flask(__name__)
 CORS(app)
 
 # =========================
-# DB SETUP
+# DATABASE
 # =========================
 DB_URL = os.environ.get("DATABASE_URL", "")
 
@@ -24,7 +24,7 @@ def init_db_pool():
     global db_pool
     try:
         if not DB_URL:
-            raise Exception("DATABASE_URL not set")
+            raise Exception("DATABASE_URL missing")
 
         db_pool = psycopg2.pool.ThreadedConnectionPool(
             minconn=1,
@@ -35,7 +35,7 @@ def init_db_pool():
         print("✅ DB connected")
 
     except Exception as e:
-        print("❌ DB init failed:", e)
+        print("❌ DB error:", e)
         db_pool = None
 
 
@@ -48,7 +48,7 @@ def put_conn(conn):
 
 
 # =========================
-# INIT DB TABLE
+# INIT TABLE
 # =========================
 def init_table():
     if not db_pool:
@@ -71,7 +71,7 @@ def init_table():
         print("✅ table ready")
 
     except Exception as e:
-        print("❌ table init failed:", e)
+        print("❌ table error:", e)
         if conn:
             conn.rollback()
 
@@ -81,7 +81,7 @@ def init_table():
 
 
 # =========================
-# MEMORY FUNCTIONS
+# MEMORY CORE
 # =========================
 def save_memory(content):
     if not db_pool:
@@ -109,7 +109,7 @@ def save_memory(content):
             put_conn(conn)
 
 
-def read_memory(limit=20):
+def read_memories(limit=20):
     if not db_pool:
         return []
 
@@ -132,13 +132,46 @@ def read_memory(limit=20):
             put_conn(conn)
 
 
+def delete_memory(mid):
+    if not db_pool:
+        return False
+
+    conn = None
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM memories WHERE id=%s", (mid,))
+        conn.commit()
+        return True
+
+    except Exception as e:
+        print("delete error:", e)
+        if conn:
+            conn.rollback()
+        return False
+
+    finally:
+        if conn:
+            put_conn(conn)
+
+
 # =========================
-# MCP TOOLS
+# STATE
+# =========================
+STATE = {
+    "mood": 0.6,
+    "energy": 0.8,
+    "status": "alive"
+}
+
+
+# =========================
+# MCP TOOLS (5个)
 # =========================
 TOOLS = [
     {
         "name": "save_memory",
-        "description": "Save a memory",
+        "description": "保存记忆",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -149,7 +182,34 @@ TOOLS = [
     },
     {
         "name": "get_memories",
-        "description": "Get memory list",
+        "description": "获取记忆列表",
+        "inputSchema": {
+            "type": "object",
+            "properties": {}
+        }
+    },
+    {
+        "name": "delete_memory",
+        "description": "删除记忆",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "id": {"type": "integer"}
+            },
+            "required": ["id"]
+        }
+    },
+    {
+        "name": "get_state",
+        "description": "获取系统状态",
+        "inputSchema": {
+            "type": "object",
+            "properties": {}
+        }
+    },
+    {
+        "name": "get_stats",
+        "description": "获取统计信息",
         "inputSchema": {
             "type": "object",
             "properties": {}
@@ -159,7 +219,7 @@ TOOLS = [
 
 
 # =========================
-# MCP ENDPOINT
+# MCP SERVER
 # =========================
 @app.route("/mcp", methods=["POST"])
 def mcp():
@@ -180,7 +240,7 @@ def mcp():
             "protocolVersion": "2024-11-05",
             "serverInfo": {
                 "name": "island-memory",
-                "version": "1.0"
+                "version": "2.0"
             },
             "capabilities": {
                 "tools": {}
@@ -189,9 +249,7 @@ def mcp():
 
     # -------- tools/list --------
     if method == "tools/list":
-        return ok({
-            "tools": TOOLS
-        })
+        return ok({"tools": TOOLS})
 
     # -------- tools/call --------
     if method == "tools/call":
@@ -204,9 +262,21 @@ def mcp():
             return ok({"content": "saved"})
 
         if name == "get_memories":
-            return ok({"content": read_memory()})
+            return ok({"content": read_memories()})
 
-        return ok({"error": "unknown tool"})
+        if name == "delete_memory":
+            delete_memory(args.get("id"))
+            return ok({"content": "deleted"})
+
+        if name == "get_state":
+            return ok({"content": STATE})
+
+        if name == "get_stats":
+            return ok({
+                "content": {
+                    "memory_count": len(read_memories(100))
+                }
+            })
 
     return ok({"error": "unknown method"})
 
@@ -223,7 +293,7 @@ def home():
 
 
 # =========================
-# STARTUP
+# START
 # =========================
 if __name__ == "__main__":
     init_db_pool()
