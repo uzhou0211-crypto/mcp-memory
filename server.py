@@ -1,4 +1,4 @@
- import os, datetime, json
+import os, datetime, json
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import psycopg2
@@ -186,4 +186,4 @@ def home():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT",3000)))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT",3000))) 
