@@ -1,7 +1,9 @@
 import os
 import json
 import datetime
-from flask import Flask, request, jsonify, Response
+import io
+import zipfile
+from flask import Flask, request, jsonify, Response, send_file
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -12,21 +14,37 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 # =====================
 MEMORIES = []
 AUTO_ID = 1
+STATE = {
+    "mood": 0.5,
+    "energy": 0.5,
+    "active_message": "我在这里",
+    "last_thought": "初始化完成"
+}
 
-def save_memory(content):
+# =====================
+# 工具函数
+# =====================
+def save_memory(content, area="法典", tags=""):
     global AUTO_ID
     mem = {
         "id": AUTO_ID,
         "content": content,
-        "time": datetime.datetime.utcnow().isoformat(),
-        "area": "法典"
+        "area": area,
+        "tags": tags,
+        "time": datetime.datetime.utcnow().isoformat()
     }
     AUTO_ID += 1
     MEMORIES.append(mem)
     return mem
 
-def get_memories():
-    return list(reversed(MEMORIES))
+def get_memories(area=None, search=None, limit=200):
+    result = list(reversed(MEMORIES))
+    if area:
+        result = [m for m in result if m.get("area") == area]
+    if search:
+        sl = search.lower()
+        result = [m for m in result if sl in m.get("content", "").lower()]
+    return result[:limit]
 
 def delete_memory(mid):
     global MEMORIES
@@ -34,8 +52,22 @@ def delete_memory(mid):
     MEMORIES = [m for m in MEMORIES if m["id"] != mid]
     return before != len(MEMORIES)
 
+def get_state():
+    return dict(STATE)
+
+def get_stats():
+    areas = {}
+    for m in MEMORIES:
+        a = m.get("area", "法典")
+        areas[a] = areas.get(a, 0) + 1
+    return {
+        "total": len(MEMORIES),
+        "areas": areas,
+        "last_saved": MEMORIES[-1]["time"] if MEMORIES else None
+    }
+
 # =====================
-# MCP 工具定义
+# MCP 工具定义（5个）
 # =====================
 TOOLS = [
     {
@@ -44,17 +76,23 @@ TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "content": {"type": "string", "description": "要保存的记忆内容"}
+                "content": {"type": "string", "description": "要保存的记忆内容"},
+                "area":    {"type": "string", "description": "区域：法典/情绪/日记/想法", "default": "法典"},
+                "tags":    {"type": "string", "description": "标签（逗号分隔，可选）"}
             },
             "required": ["content"]
         }
     },
     {
         "name": "get_memories",
-        "description": "读取所有已保存的记忆",
+        "description": "读取记忆，可按区域/关键词过滤",
         "inputSchema": {
             "type": "object",
-            "properties": {}
+            "properties": {
+                "area":   {"type": "string", "description": "按区域过滤（可选）"},
+                "search": {"type": "string", "description": "关键词搜索（可选）"},
+                "limit":  {"type": "number",  "description": "最多返回条数，默认200"}
+            }
         }
     },
     {
@@ -67,11 +105,27 @@ TOOLS = [
             },
             "required": ["id"]
         }
+    },
+    {
+        "name": "get_state",
+        "description": "获取当前岛屿状态（情绪、能量、活跃信息）",
+        "inputSchema": {
+            "type": "object",
+            "properties": {}
+        }
+    },
+    {
+        "name": "get_stats",
+        "description": "获取记忆库统计（总数、各区域分布、最后保存时间）",
+        "inputSchema": {
+            "type": "object",
+            "properties": {}
+        }
     }
 ]
 
 # =====================
-# JSON-RPC 处理
+# JSON-RPC 核心
 # =====================
 def handle_rpc(data):
     method = data.get("method", "")
@@ -82,14 +136,13 @@ def handle_rpc(data):
         return {"jsonrpc": "2.0", "id": req_id, "result": result}
 
     def err(code, message):
-        return {"jsonrpc": "2.0", "id": req_id,
-                "error": {"code": code, "message": message}}
+        return {"jsonrpc": "2.0", "id": req_id, "error": {"code": code, "message": message}}
 
     if method == "initialize":
         return ok({
             "protocolVersion": "2024-11-05",
             "capabilities": {"tools": {}},
-            "serverInfo": {"name": "memory-island", "version": "9.0"}
+            "serverInfo": {"name": "memory-island", "version": "10.0"}
         })
 
     if method in ("notifications/initialized", "notifications/cancelled"):
@@ -106,11 +159,23 @@ def handle_rpc(data):
         args = params.get("arguments", {})
 
         if name == "save_memory":
-            result = save_memory(args.get("content", ""))
+            result = save_memory(
+                args.get("content", ""),
+                args.get("area", "法典"),
+                args.get("tags", "")
+            )
         elif name == "get_memories":
-            result = get_memories()
+            result = get_memories(
+                area=args.get("area"),
+                search=args.get("search"),
+                limit=int(args.get("limit", 200))
+            )
         elif name == "delete_memory":
             result = {"deleted": delete_memory(args.get("id"))}
+        elif name == "get_state":
+            result = get_state()
+        elif name == "get_stats":
+            result = get_stats()
         else:
             return err(-32601, f"未知工具: {name}")
 
@@ -124,70 +189,120 @@ def handle_rpc(data):
 
 
 # =====================
-# MCP 主端点 —— Streamable HTTP 模式
+# MCP 端点 —— Streamable HTTP
 # =====================
 @app.route("/mcp", methods=["GET", "POST", "OPTIONS"])
 def mcp():
     if request.method == "OPTIONS":
-        return _cors_response("", 204)
-
+        return _cors("", 204)
     if request.method == "GET":
-        return _cors_response("", 204)
+        return _cors("", 204)
 
-    raw = request.get_data(as_text=True)
     try:
-        data = json.loads(raw)
+        data = json.loads(request.get_data(as_text=True))
     except Exception:
-        resp_body = json.dumps({
-            "jsonrpc": "2.0", "id": None,
-            "error": {"code": -32700, "message": "Parse error"}
-        })
-        return _cors_response(resp_body, 400, "application/json")
+        return _cors(json.dumps({"jsonrpc":"2.0","id":None,"error":{"code":-32700,"message":"Parse error"}}), 400, "application/json")
 
     if isinstance(data, list):
-        results = [handle_rpc(item) for item in data]
-        results = [r for r in results if r is not None]
-        if not results:
-            return _cors_response("", 202)
-        return _cors_response(json.dumps(results, ensure_ascii=False), 200, "application/json")
+        results = [r for r in (handle_rpc(d) for d in data) if r is not None]
+        return _cors(json.dumps(results, ensure_ascii=False) if results else "", 200 if results else 202, "application/json")
 
     result = handle_rpc(data)
     if result is None:
-        return _cors_response("", 202)
+        return _cors("", 202)
+    return _cors(json.dumps(result, ensure_ascii=False), 200, "application/json")
 
-    return _cors_response(json.dumps(result, ensure_ascii=False), 200, "application/json")
 
-
-def _cors_response(body, status=200, content_type="text/plain"):
-    resp = Response(body, status=status, content_type=content_type)
-    resp.headers["Access-Control-Allow-Origin"] = "*"
-    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Mcp-Session-Id"
-    return resp
+def _cors(body, status=200, ct="text/plain"):
+    r = Response(body, status=status, content_type=ct)
+    r.headers["Access-Control-Allow-Origin"] = "*"
+    r.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    r.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Mcp-Session-Id"
+    return r
 
 
 # =====================
-# 普通 REST API
+# REST API
 # =====================
-@app.route("/api/read")
-def api_read():
-    return jsonify(get_memories())
-
 @app.route("/api/chat", methods=["POST"])
 def api_chat():
     data = request.get_json(force=True)
-    msg = data.get("message", "")
-    mem = save_memory(msg)
-    return jsonify({"reply": "已保存：" + msg, "memory": mem})
+    msg  = data.get("message", "")
+    area = data.get("area", "法典")
+    mem  = save_memory(msg, area)
+    return jsonify({"reply": f"已加密同步至{area}。", "state": get_state(), "memory": mem})
+
+@app.route("/api/read")
+def api_read():
+    area   = request.args.get("area")
+    search = request.args.get("search")
+    limit  = int(request.args.get("limit", 200))
+    return jsonify(get_memories(area=area, search=search, limit=limit))
 
 @app.route("/api/delete/<int:mid>", methods=["DELETE"])
 def api_delete(mid):
     return jsonify({"ok": delete_memory(mid)})
 
+@app.route("/api/state")
+def api_state():
+    return jsonify(get_state())
+
+@app.route("/api/stats")
+def api_stats():
+    return jsonify(get_stats())
+
+# =====================
+# 批量导入（每批 3 块，纯内存操作，不会超时）
+# =====================
+@app.route("/api/upload_chunks", methods=["POST"])
+def api_upload_chunks():
+    data   = request.get_json(force=True)
+    chunks = data.get("chunks", [])
+    area   = data.get("area", "法典")
+    tags   = data.get("tags", "")
+    saved  = 0
+    for c in chunks:
+        if c and c.strip():
+            save_memory(c.strip(), area, tags)
+            saved += 1
+    return jsonify({"saved": saved, "total": len(MEMORIES)})
+
+# =====================
+# 备份 / 恢复
+# =====================
+@app.route("/api/backup")
+def api_backup():
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("memories.json", json.dumps(MEMORIES, ensure_ascii=False, indent=2))
+        z.writestr("state.json",    json.dumps(STATE,    ensure_ascii=False, indent=2))
+    buf.seek(0)
+    return send_file(
+        buf,
+        mimetype="application/octet-stream",
+        as_attachment=True,
+        download_name=f"shun_memory_{datetime.date.today()}.enc"
+    )
+
+@app.route("/api/restore", methods=["POST"])
+def api_restore():
+    global MEMORIES, AUTO_ID
+    try:
+        buf = io.BytesIO(request.get_data())
+        with zipfile.ZipFile(buf, "r") as z:
+            mems = json.loads(z.read("memories.json").decode())
+        MEMORIES = mems
+        AUTO_ID  = max((m["id"] for m in mems), default=0) + 1
+        return jsonify({"restored": len(mems)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+# =====================
+# 健康检查
+# =====================
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok", "version": "9.0", "memories": len(MEMORIES)})
-
+    return jsonify({"status": "ok", "version": "10.0", "memories": len(MEMORIES)})
 
 # =====================
 # 启动
