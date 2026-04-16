@@ -1,14 +1,37 @@
-import os
-import datetime
+import os, json, datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from cryptography.fernet import Fernet
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from psycopg2 import pool
+from psycopg2.pool import ThreadedConnectionPool
 
 app = Flask(__name__)
 CORS(app)
+
+# =========================
+# STATE
+# =========================
+STATE = {
+    "mood": 0.5,
+    "energy": 0.5,
+    "active_message": "启动中",
+    "last_thought": ""
+}
+
+# =========================
+# ENCRYPTION
+# =========================
+KEY = os.environ.get("MEMORY_KEY", Fernet.generate_key().decode())
+cipher = Fernet(KEY.encode())
+
+def encrypt(t): return cipher.encrypt(t.encode()).decode()
+def decrypt(t):
+    try:
+        return cipher.decrypt(t.encode()).decode()
+    except:
+        return t
 
 # =========================
 # DATABASE
@@ -20,286 +43,186 @@ if DB_URL.startswith("postgres://"):
 
 db_pool = None
 
-def init_db_pool():
+def init_db():
     global db_pool
     try:
-        if not DB_URL:
-            raise Exception("DATABASE_URL missing")
-
-        db_pool = psycopg2.pool.ThreadedConnectionPool(
-            minconn=1,
-            maxconn=10,
+        db_pool = ThreadedConnectionPool(
+            1, 10,
             dsn=DB_URL,
             sslmode="require"
         )
         print("✅ DB connected")
 
-    except Exception as e:
-        print("❌ DB error:", e)
-        db_pool = None
-
-
-def get_conn():
-    return db_pool.getconn()
-
-def put_conn(conn):
-    if db_pool:
-        db_pool.putconn(conn)
-
-
-# =========================
-# INIT TABLE
-# =========================
-def init_table():
-    if not db_pool:
-        return
-
-    conn = None
-    try:
-        conn = get_conn()
+        conn = db_pool.getconn()
         cur = conn.cursor()
-
         cur.execute("""
             CREATE TABLE IF NOT EXISTS memories (
                 id SERIAL PRIMARY KEY,
-                content TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT NOW()
+                time TIMESTAMPTZ DEFAULT NOW(),
+                area TEXT,
+                content TEXT
             )
         """)
-
         conn.commit()
-        print("✅ table ready")
+        db_pool.putconn(conn)
 
     except Exception as e:
-        print("❌ table error:", e)
-        if conn:
-            conn.rollback()
+        print("DB error:", e)
+        db_pool = None
 
-    finally:
-        if conn:
-            put_conn(conn)
+init_db()
 
-
-# =========================
-# MEMORY CORE
-# =========================
-def save_memory(content):
+def save_memory(text, area="法典"):
     if not db_pool:
         return False
+    conn = db_pool.getconn()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO memories(area, content) VALUES (%s,%s)",
+        (area, encrypt(text))
+    )
+    conn.commit()
+    db_pool.putconn(conn)
+    return True
 
-    conn = None
-    try:
-        conn = get_conn()
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO memories(content) VALUES (%s)",
-            (content,)
-        )
-        conn.commit()
-        return True
-
-    except Exception as e:
-        print("save error:", e)
-        if conn:
-            conn.rollback()
-        return False
-
-    finally:
-        if conn:
-            put_conn(conn)
-
-
-def read_memories(limit=20):
+def read_memory(limit=50):
     if not db_pool:
         return []
+    conn = db_pool.getconn()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur.execute("SELECT * FROM memories ORDER BY time DESC LIMIT %s", (limit,))
+    rows = cur.fetchall()
+    db_pool.putconn(conn)
 
-    conn = None
-    try:
-        conn = get_conn()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute(
-            "SELECT * FROM memories ORDER BY id DESC LIMIT %s",
-            (limit,)
-        )
-        return cur.fetchall()
-
-    except Exception as e:
-        print("read error:", e)
-        return []
-
-    finally:
-        if conn:
-            put_conn(conn)
-
+    for r in rows:
+        r["content"] = decrypt(r["content"])
+    return rows
 
 def delete_memory(mid):
     if not db_pool:
         return False
-
-    conn = None
-    try:
-        conn = get_conn()
-        cur = conn.cursor()
-        cur.execute("DELETE FROM memories WHERE id=%s", (mid,))
-        conn.commit()
-        return True
-
-    except Exception as e:
-        print("delete error:", e)
-        if conn:
-            conn.rollback()
-        return False
-
-    finally:
-        if conn:
-            put_conn(conn)
-
+    conn = db_pool.getconn()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM memories WHERE id=%s", (mid,))
+    conn.commit()
+    db_pool.putconn(conn)
+    return True
 
 # =========================
-# STATE
+# MCP (Claude)
 # =========================
-STATE = {
-    "mood": 0.6,
-    "energy": 0.8,
-    "status": "alive"
-}
-
-
-# =========================
-# MCP TOOLS (5个)
-# =========================
-TOOLS = [
-    {
-        "name": "save_memory",
-        "description": "保存记忆",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "content": {"type": "string"}
-            },
-            "required": ["content"]
-        }
-    },
-    {
-        "name": "get_memories",
-        "description": "获取记忆列表",
-        "inputSchema": {
-            "type": "object",
-            "properties": {}
-        }
-    },
-    {
-        "name": "delete_memory",
-        "description": "删除记忆",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "id": {"type": "integer"}
-            },
-            "required": ["id"]
-        }
-    },
-    {
-        "name": "get_state",
-        "description": "获取系统状态",
-        "inputSchema": {
-            "type": "object",
-            "properties": {}
-        }
-    },
-    {
-        "name": "get_stats",
-        "description": "获取统计信息",
-        "inputSchema": {
-            "type": "object",
-            "properties": {}
-        }
-    }
-]
-
-
-# =========================
-# MCP SERVER
-# =========================
-@app.route("/mcp", methods=["POST"])
+@app.route("/mcp", methods=["GET", "POST"])
 def mcp():
-    data = request.get_json(force=True)
+    if request.method == "GET":
+        return jsonify({"status": "ok", "version": "5.0"})
+
+    data = request.json
     method = data.get("method")
+    params = data.get("params", {})
     req_id = data.get("id")
 
     def ok(result):
-        return jsonify({
-            "jsonrpc": "2.0",
-            "id": req_id,
-            "result": result
-        })
+        return jsonify({"jsonrpc": "2.0", "id": req_id, "result": result})
 
-    # -------- initialize --------
-    if method == "initialize":
-        return ok({
-            "protocolVersion": "2024-11-05",
-            "serverInfo": {
-                "name": "island-memory",
-                "version": "2.0"
-            },
-            "capabilities": {
-                "tools": {}
-            }
-        })
-
-    # -------- tools/list --------
     if method == "tools/list":
-        return ok({"tools": TOOLS})
+        return ok({
+            "tools": [
+                {"name": "save_memory"},
+                {"name": "get_memories"},
+                {"name": "delete_memory"},
+                {"name": "get_state"},
+                {"name": "get_stats"}
+            ]
+        })
 
-    # -------- tools/call --------
     if method == "tools/call":
-        params = data.get("params", {})
         name = params.get("name")
         args = params.get("arguments", {})
 
         if name == "save_memory":
-            save_memory(args.get("content", ""))
-            return ok({"content": "saved"})
+            save_memory(args.get("content",""))
+            return ok({"ok": True})
 
         if name == "get_memories":
-            return ok({"content": read_memories()})
+            return ok(read_memory())
 
         if name == "delete_memory":
-            delete_memory(args.get("id"))
-            return ok({"content": "deleted"})
+            return ok({"ok": delete_memory(args.get("id"))})
 
         if name == "get_state":
-            return ok({"content": STATE})
+            return ok(STATE)
 
         if name == "get_stats":
-            return ok({
-                "content": {
-                    "memory_count": len(read_memories(100))
-                }
-            })
+            return ok({"count": len(read_memory(9999))})
 
     return ok({"error": "unknown method"})
 
+# =========================
+# WEB UI APIs（关键补齐）
+# =========================
+
+@app.route("/api/state")
+def api_state():
+    return jsonify(STATE)
+
+@app.route("/api/chat", methods=["POST"])
+def api_chat():
+    data = request.json or {}
+    msg = data.get("message","")
+
+    save_memory(msg)
+
+    STATE["last_thought"] = msg[:30]
+    STATE["active_message"] = "我已收到"
+
+    return jsonify({
+        "reply": "已保存到记忆",
+        "state": STATE
+    })
+
+@app.route("/api/read")
+def api_read():
+    limit = int(request.args.get("limit", 50))
+    return jsonify(read_memory(limit))
+
+@app.route("/api/delete/<int:mid>", methods=["DELETE"])
+def api_delete(mid):
+    return jsonify({"ok": delete_memory(mid)})
+
+@app.route("/api/upload_chunks", methods=["POST"])
+def api_upload():
+    data = request.json or {}
+    chunks = data.get("chunks", [])
+    area = data.get("area","法典")
+
+    saved = 0
+    for c in chunks:
+        if save_memory(c, area):
+            saved += 1
+
+    return jsonify({"saved": saved})
+
+@app.route("/api/backup")
+def api_backup():
+    return jsonify(read_memory(9999))
+
+@app.route("/api/restore", methods=["POST"])
+def api_restore():
+    return jsonify({"restored": 0})
 
 # =========================
-# HEALTH CHECK
+# ROOT
 # =========================
 @app.route("/")
 def home():
     return jsonify({
         "status": "running",
-        "db": db_pool is not None
+        "db": db_pool is not None,
+        "version": "5.0"
     })
 
-
 # =========================
-# START
+# RUN
 # =========================
 if __name__ == "__main__":
-    init_db_pool()
-    init_table()
-
-    app.run(
-        host="0.0.0.0",
-        port=int(os.environ.get("PORT", 3000))
-    )
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 3000)))
