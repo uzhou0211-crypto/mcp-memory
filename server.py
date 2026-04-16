@@ -1,52 +1,17 @@
-"""
-小顺的岛屿记忆库 v4.2 MCP完整版
-══════════════════════════════
-✔ Railway 可运行
-✔ PostgreSQL 稳定连接
-✔ Claude MCP 完整支持
-✔ tools/list + initialize + tools/call
-✔ 不会启动崩溃
-══════════════════════════════
-"""
-
-import os, json, datetime
+import os
+import datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from cryptography.fernet import Fernet
-from functools import wraps
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from psycopg2 import pool
 
-# =========================
-# Flask
-# =========================
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app)
 
 # =========================
-# 加密
-# =========================
-def load_cipher():
-    key = os.environ.get("MEMORY_KEY", "")
-    if not key:
-        key = Fernet.generate_key().decode()
-    return Fernet(key.encode())
-
-cipher = load_cipher()
-
-def encrypt(text):
-    return cipher.encrypt(text.encode()).decode()
-
-def decrypt(text):
-    try:
-        return cipher.decrypt(text.encode()).decode()
-    except:
-        return text
-
-# =========================
-# DB
+# DB SETUP
 # =========================
 DB_URL = os.environ.get("DATABASE_URL", "")
 
@@ -59,201 +24,212 @@ def init_db_pool():
     global db_pool
     try:
         if not DB_URL:
-            raise Exception("DATABASE_URL missing")
+            raise Exception("DATABASE_URL not set")
 
         db_pool = psycopg2.pool.ThreadedConnectionPool(
             minconn=1,
-            maxconn=5,
-            dsn=DB_URL
+            maxconn=10,
+            dsn=DB_URL,
+            sslmode="require"
         )
-
         print("✅ DB connected")
 
     except Exception as e:
-        print("❌ DB error:", e)
+        print("❌ DB init failed:", e)
         db_pool = None
+
 
 def get_conn():
     return db_pool.getconn()
 
 def put_conn(conn):
-    db_pool.putconn(conn)
+    if db_pool:
+        db_pool.putconn(conn)
 
-def init_db():
+
+# =========================
+# INIT DB TABLE
+# =========================
+def init_table():
     if not db_pool:
         return
 
-    conn = get_conn()
+    conn = None
     try:
-        with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS memories (
-                    id SERIAL PRIMARY KEY,
-                    time TIMESTAMPTZ DEFAULT NOW(),
-                    area TEXT,
-                    content TEXT,
-                    tags TEXT
-                )
-            """)
+        conn = get_conn()
+        cur = conn.cursor()
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS memories (
+                id SERIAL PRIMARY KEY,
+                content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+
         conn.commit()
+        print("✅ table ready")
+
+    except Exception as e:
+        print("❌ table init failed:", e)
+        if conn:
+            conn.rollback()
+
     finally:
-        put_conn(conn)
+        if conn:
+            put_conn(conn)
+
 
 # =========================
-# Memory
+# MEMORY FUNCTIONS
 # =========================
-def save_memory(content, area="法典", tags=""):
+def save_memory(content):
     if not db_pool:
         return False
 
-    conn = get_conn()
+    conn = None
     try:
-        with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO memories(area, content, tags) VALUES (%s,%s,%s)",
-                (area, encrypt(content), tags)
-            )
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO memories(content) VALUES (%s)",
+            (content,)
+        )
         conn.commit()
         return True
-    except:
-        conn.rollback()
-        return False
-    finally:
-        put_conn(conn)
 
-def read_memory(limit=50):
+    except Exception as e:
+        print("save error:", e)
+        if conn:
+            conn.rollback()
+        return False
+
+    finally:
+        if conn:
+            put_conn(conn)
+
+
+def read_memory(limit=20):
     if not db_pool:
         return []
 
-    conn = get_conn()
+    conn = None
     try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("SELECT * FROM memories ORDER BY id DESC LIMIT %s", (limit,))
-            rows = cur.fetchall()
+        conn = get_conn()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute(
+            "SELECT * FROM memories ORDER BY id DESC LIMIT %s",
+            (limit,)
+        )
+        return cur.fetchall()
 
-        result = []
-        for r in rows:
-            r["content"] = decrypt(r["content"])
-            result.append(r)
-        return result
+    except Exception as e:
+        print("read error:", e)
+        return []
+
     finally:
-        put_conn(conn)
+        if conn:
+            put_conn(conn)
+
 
 # =========================
-# 启动初始化（关键）
+# MCP TOOLS
 # =========================
-init_db_pool()
-init_db()
+TOOLS = [
+    {
+        "name": "save_memory",
+        "description": "Save a memory",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "content": {"type": "string"}
+            },
+            "required": ["content"]
+        }
+    },
+    {
+        "name": "get_memories",
+        "description": "Get memory list",
+        "inputSchema": {
+            "type": "object",
+            "properties": {}
+        }
+    }
+]
+
 
 # =========================
-# MCP 核心
+# MCP ENDPOINT
 # =========================
-@app.route("/mcp", methods=["POST", "GET"])
+@app.route("/mcp", methods=["POST"])
 def mcp():
-    if request.method == "GET":
-        return jsonify({"status": "ok", "version": "4.2-mcp"})
-
-    data = request.get_json(force=True, silent=True)
-    if not data:
-        return jsonify({"error": "no json"}), 400
-
+    data = request.get_json(force=True)
     method = data.get("method")
-    params = data.get("params", {})
     req_id = data.get("id")
 
     def ok(result):
-        return {"jsonrpc": "2.0", "id": req_id, "result": result}
+        return jsonify({
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "result": result
+        })
 
-    # =========================
-    # initialize
-    # =========================
+    # -------- initialize --------
     if method == "initialize":
-        return jsonify(ok({
+        return ok({
             "protocolVersion": "2024-11-05",
-            "serverInfo": {"name": "island-memory", "version": "4.2"},
-            "capabilities": {"tools": True}
-        }))
+            "serverInfo": {
+                "name": "island-memory",
+                "version": "1.0"
+            },
+            "capabilities": {
+                "tools": {}
+            }
+        })
 
-    # =========================
-    # tools/list
-    # =========================
+    # -------- tools/list --------
     if method == "tools/list":
-        return jsonify(ok({
-            "tools": [
-                {
-                    "name": "save_memory",
-                    "description": "Save memory",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "content": {"type": "string"},
-                            "area": {"type": "string"},
-                            "tags": {"type": "string"}
-                        },
-                        "required": ["content"]
-                    }
-                },
-                {
-                    "name": "get_memories",
-                    "description": "Read memory list",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "limit": {"type": "integer"}
-                        }
-                    }
-                }
-            ]
-        }))
+        return ok({
+            "tools": TOOLS
+        })
 
-    # =========================
-    # tools/call
-    # =========================
+    # -------- tools/call --------
     if method == "tools/call":
+        params = data.get("params", {})
         name = params.get("name")
         args = params.get("arguments", {})
 
         if name == "save_memory":
-            ok_flag = save_memory(
-                args.get("content", ""),
-                args.get("area", "法典"),
-                args.get("tags", "")
-            )
-            return jsonify(ok({
-                "content": [{"type": "text", "text": "saved" if ok_flag else "failed"}]
-            }))
+            save_memory(args.get("content", ""))
+            return ok({"content": "saved"})
 
         if name == "get_memories":
-            mem = read_memory(args.get("limit", 50))
-            return jsonify(ok({
-                "content": [{"type": "text", "text": json.dumps(mem, ensure_ascii=False)}]
-            }))
+            return ok({"content": read_memory()})
 
-    return jsonify(ok({"status": "unknown"}))
+        return ok({"error": "unknown tool"})
+
+    return ok({"error": "unknown method"})
+
 
 # =========================
-# API
+# HEALTH CHECK
 # =========================
 @app.route("/")
 def home():
     return jsonify({
         "status": "running",
-        "db": db_pool is not None,
-        "version": "4.2"
+        "db": db_pool is not None
     })
 
-@app.route("/api/save", methods=["POST"])
-def api_save():
-    data = request.get_json(force=True)
-    save_memory(data.get("content", ""))
-    return jsonify({"ok": True})
-
-@app.route("/api/read")
-def api_read():
-    return jsonify(read_memory())
 
 # =========================
-# RUN
+# STARTUP
 # =========================
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 3000)))
+    init_db_pool()
+    init_table()
+
+    app.run(
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 3000))
+    )
