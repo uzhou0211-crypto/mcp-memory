@@ -1,18 +1,18 @@
-import os, datetime, json
+import os
+import datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import psycopg2
-from psycopg2.extras import RealDictCursor
 
 app = Flask(__name__)
 CORS(app)
 
 # =========================
-# DB
+# DATABASE
 # =========================
-DB_URL = os.environ.get("DATABASE_URL", "")
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
-conn = psycopg2.connect(DB_URL, sslmode="require")
+conn = psycopg2.connect(DATABASE_URL, sslmode="require")
 cur = conn.cursor()
 
 cur.execute("""
@@ -31,8 +31,8 @@ conn.commit()
 STATE = {
     "mood": 0.5,
     "energy": 0.5,
-    "active_message": "我在岛上。",
-    "last_thought": "系统启动"
+    "active_message": "我在岛屿中",
+    "last_thought": "启动完成"
 }
 
 # =========================
@@ -47,36 +47,36 @@ def home():
     })
 
 # =========================
-# STATE
+# STATE API
 # =========================
 @app.route("/api/state")
-def state():
+def get_state():
     return jsonify(STATE)
 
 # =========================
-# CHAT（你网页核心）
+# CHAT API
 # =========================
 @app.route("/api/chat", methods=["POST"])
 def chat():
-    data = request.get_json()
-    msg = data.get("message", "")
+    data = request.get_json() or {}
+    message = data.get("message", "")
     area = data.get("area", "法典")
 
     cur.execute(
-        "INSERT INTO memories(area, content) VALUES (%s,%s)",
-        (area, msg)
+        "INSERT INTO memories(area, content) VALUES (%s, %s)",
+        (area, message)
     )
     conn.commit()
 
-    STATE["last_thought"] = f"记录：{msg[:20]}"
+    STATE["last_thought"] = message[:30]
 
     return jsonify({
-        "reply": "已记录到岛屿记忆库",
+        "reply": "已保存到记忆岛",
         "state": STATE
     })
 
 # =========================
-# READ
+# READ MEMORIES
 # =========================
 @app.route("/api/read")
 def read():
@@ -100,11 +100,11 @@ def read():
     return jsonify(result)
 
 # =========================
-# DELETE
+# DELETE MEMORY
 # =========================
-@app.route("/api/delete/<int:id>", methods=["DELETE"])
-def delete(id):
-    cur.execute("DELETE FROM memories WHERE id=%s", (id,))
+@app.route("/api/delete/<int:mid>", methods=["DELETE"])
+def delete(mid):
+    cur.execute("DELETE FROM memories WHERE id=%s", (mid,))
     conn.commit()
     return jsonify({"ok": True})
 
@@ -113,13 +113,13 @@ def delete(id):
 # =========================
 @app.route("/api/upload_chunks", methods=["POST"])
 def upload_chunks():
-    data = request.get_json()
+    data = request.get_json() or {}
     chunks = data.get("chunks", [])
     area = data.get("area", "法典")
 
     for c in chunks:
         cur.execute(
-            "INSERT INTO memories(area, content) VALUES (%s,%s)",
+            "INSERT INTO memories(area, content) VALUES (%s, %s)",
             (area, c)
         )
 
@@ -130,7 +130,7 @@ def upload_chunks():
     })
 
 # =========================
-# BACKUP（简单版）
+# BACKUP
 # =========================
 @app.route("/api/backup")
 def backup():
@@ -153,21 +153,24 @@ def backup():
 # =========================
 @app.route("/api/restore", methods=["POST"])
 def restore():
-    data = request.get_json(force=True, silent=True)
+    data = request.get_json() or []data = request.get_json() 或 []
 
     if not isinstance(data, list):如果 不是  isinstance(data, list):数据，列表):
-        return返回 jsonify({"error"返回jsonify({"error"“错误”“错误”“错误”: "bad format"“格式错误”“格式错误”}), 400返回 jsonify({"error"“错误”“错误”“错误”: "格式错误"}), 400“错误”“错误”“错误”: “bad format”“格式错误”“格式错误”}), 400返回 jsonify({"error"“错误”“错误”“错误”: “格式错误”}), 400
+        return返回 jsonify({"error"“错误”返回jsonify({"error"“错误”“错误”“错误”: "bad format"“格式错误”“格式错误”}), 400返回 jsonify({"error"“错误”“错误”: "格式错误"}), 400
 
     for item in data:
         cur.execute(
-            "INSERT INTO memories(area, content) VALUES (%s,%s)",
-            (item.get("area","法典"), item.get("content",""))
+            "INSERT INTO memories(area, content) VALUES (%s, %s)",
+            (item.get("area", "法典"), item.get("content", ""))
         )
 
-    conn.commit()连接。提交()连接。提交()连接。提交()连接。提交()连接。提交()连接。提交()连接。提交()
+    conn.commit()连接。提交()连接。提交()连接。提交()
 
     return返回 jsonify({"restored"“已恢复”: len(data)})数据)})返回jsonify({"restored"“已恢复”:len(data)})数据)})返回 jsonify({"恢复成功": len(数据)})
 
 # =========================
+# RUN# 运行
+# =========================
 if __name__ == "__main__":如果__name__ =="__main__":如果__name__ =="__main__":如果__name__ =="__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 3000)))
+    port = int(os.environ.get("PORT", 3000))
+    app.run(host="0.0.0.0", port=port)
