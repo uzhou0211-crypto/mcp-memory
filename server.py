@@ -1,4 +1,4 @@
-import os, datetime, json
+import os, datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import psycopg2
@@ -8,22 +8,35 @@ app = Flask(__name__)
 CORS(app)
 
 # =========================
-# DB
+# DATABASE
 # =========================
-DB_URL = os.environ.get("DATABASE_URL", "")
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
-conn = psycopg2.connect(DB_URL, sslmode="require")
-cur = conn.cursor()
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-cur.execute("""
-CREATE TABLE IF NOT EXISTS memories (
-    id SERIAL PRIMARY KEY,
-    time TIMESTAMPTZ DEFAULT NOW(),
-    area TEXT,
-    content TEXT
-)
-""")
-conn.commit()
+def get_conn():
+    return psycopg2.connect(DATABASE_URL)
+
+def init_db():
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS memories (
+                id SERIAL PRIMARY KEY,
+                time TEXT,
+                area TEXT,
+                content TEXT
+            )
+        """)
+        conn.commit()
+        conn.close()
+        print("DB ready")
+    except Exception as e:
+        print("DB init error:", e)
+
+init_db()
 
 # =========================
 # STATE
@@ -31,12 +44,40 @@ conn.commit()
 STATE = {
     "mood": 0.5,
     "energy": 0.5,
-    "active_message": "我在岛上。",
-    "last_thought": "系统启动"
+    "active_message": "岛屿已上线",
+    "last_thought": ""
 }
 
 # =========================
-# HOME
+# HELPERS
+# =========================
+def save_memory(content, area):
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO memories(time, area, content) VALUES (%s,%s,%s)",
+        (datetime.datetime.utcnow().isoformat(), area, content)
+    )
+    conn.commit()
+    conn.close()
+
+def read_memory(area=None, search=None):
+    conn = get_conn()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    cur.execute("SELECT * FROM memories ORDER BY id DESC")
+    rows = cur.fetchall()
+    conn.close()
+
+    if area:
+        rows = [r for r in rows if r["area"] == area]
+    if search:
+        rows = [r for r in rows if search in r["content"]]
+
+    return rows
+
+# =========================
+# WEB API
 # =========================
 @app.route("/")
 def home():
@@ -46,128 +87,112 @@ def home():
         "version": "4.2"
     })
 
-# =========================
-# STATE
-# =========================
-@app.route("/api/state")
-def state():
-    return jsonify(STATE)
-
-# =========================
-# CHAT（你网页核心）
-# =========================
 @app.route("/api/chat", methods=["POST"])
 def chat():
     data = request.get_json()
     msg = data.get("message", "")
     area = data.get("area", "法典")
 
-    cur.execute(
-        "INSERT INTO memories(area, content) VALUES (%s,%s)",
-        (area, msg)
-    )
-    conn.commit()
+    save_memory(msg, area)
 
-    STATE["last_thought"] = f"记录：{msg[:20]}"
+    STATE["mood"] = min(1.0, STATE["mood"] + 0.01)
+    STATE["energy"] = max(0.1, STATE["energy"] - 0.01)
+    STATE["last_thought"] = msg[:30]
+    STATE["active_message"] = "我记住了你的话"
 
     return jsonify({
-        "reply": "已记录到岛屿记忆库",
+        "reply": "已存入岛屿记忆",
         "state": STATE
     })
 
-# =========================
-# READ
-# =========================
 @app.route("/api/read")
-def read():
-    limit = int(request.args.get("limit", 60))
+def api_read():
+    area = request.args.get("area")
+    search = request.args.get("search")
+    mems = read_memory(area, search)
+    return jsonify(mems)
 
-    cur.execute(
-        "SELECT * FROM memories ORDER BY id DESC LIMIT %s",
-        (limit,)
-    )
-    rows = cur.fetchall()
+@app.route("/api/state")
+def api_state():
+    return jsonify(STATE)
 
-    result = []
-    for r in rows:
-        result.append({
-            "id": r[0],
-            "time": str(r[1]),
-            "area": r[2],
-            "content": r[3]
-        })
-
-    return jsonify(result)
-
-# =========================
-# DELETE
-# =========================
-@app.route("/api/delete/<int:id>", methods=["DELETE"])
-def delete(id):
-    cur.execute("DELETE FROM memories WHERE id=%s", (id,))
+@app.route("/api/delete/<int:mid>", methods=["DELETE"])
+def delete(mid):
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM memories WHERE id=%s", (mid,))
     conn.commit()
+    conn.close()
     return jsonify({"ok": True})
 
 # =========================
-# UPLOAD CHUNKS
+# MCP SERVER (Claude 用)
 # =========================
-@app.route("/api/upload_chunks", methods=["POST"])
-def upload_chunks():
+@app.route("/mcp", methods=["GET", "POST"])
+def mcp():
+    if request.method == "GET":
+        return jsonify({"status": "ok", "version": "mcp-2.0"})
+
     data = request.get_json()
-    chunks = data.get("chunks", [])
-    area = data.get("area", "法典")
+    method = data.get("method")
+    req_id = data.get("id")
 
-    for c in chunks:
-        cur.execute(
-            "INSERT INTO memories(area, content) VALUES (%s,%s)",
-            (area, c)
-        )
-
-    conn.commit()
-
-    return jsonify({
-        "saved": len(chunks)
-    })
-
-# =========================
-# BACKUP（简单版）
-# =========================
-@app.route("/api/backup")
-def backup():
-    cur.execute("SELECT * FROM memories")
-    rows = cur.fetchall()
-
-    data = []
-    for r in rows:
-        data.append({
-            "id": r[0],
-            "time": str(r[1]),
-            "area": r[2],
-            "content": r[3]
+    def reply(result):
+        return jsonify({
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "result": result
         })
 
-    return jsonify(data)
+    # tools list
+    if method == "tools/list":
+        return reply({
+            "tools": [
+                {"name": "save_memory"},
+                {"name": "get_memories"},
+                {"name": "delete_memory"},
+                {"name": "get_state"},
+                {"name": "get_stats"}
+            ]
+        })
+
+    # tool call
+    if method == "tools/call":
+        name = data["params"]["name"]
+        args = data["params"].get("arguments", {})
+
+        if name == "save_memory":
+            save_memory(args.get("content", ""), "法典")
+            return reply({"ok": True})
+
+        if name == "get_memories":
+            return reply(read_memory())
+
+        if name == "delete_memory":
+            mid = args.get("id")
+            conn = get_conn()
+            cur = conn.cursor()
+            cur.execute("DELETE FROM memories WHERE id=%s", (mid,))
+            conn.commit()
+            conn.close()
+            return reply({"ok": True})
+
+        if name == "get_state":
+            return reply(STATE)
+
+        if name == "get_stats":
+            conn = get_conn()
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM memories")
+            count = cur.fetchone()[0]
+            conn.close()
+            return reply({"count": count})
+
+    return reply({"error": "unknown method"})
 
 # =========================
-# RESTORE
-# =========================
-@app.route("/api/restore", methods=["POST"])
-def restore():
-    data = request.get_json(force=True, silent=True)
-
-    if not isinstance(data, list):
-        return jsonify({"error": "bad format"}), 400
-
-    for item in data:
-        cur.execute(
-            "INSERT INTO memories(area, content) VALUES (%s,%s)",
-            (item.get("area","法典"), item.get("content",""))
-        )
-
-    conn.commit()
-
-    return jsonify({"restored": len(data)})
-
+# START
 # =========================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 3000)))
+    
