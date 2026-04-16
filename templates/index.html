@@ -103,6 +103,7 @@ header{position:relative;z-index:10;padding:12px 20px;display:flex;align-items:c
 .mem-del{position:absolute;top:7px;right:7px;width:20px;height:20px;border:none;border-radius:50%;background:transparent;color:var(--ink-3);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:all .15s}
 .mem-item:hover .mem-del{opacity:1}
 .mem-del:hover{background:#fee;color:#c0392b}
+@media(pointer:coarse){.mem-del{opacity:1!important}}
 .mem-empty{text-align:center;padding:28px 14px;color:var(--ink-3);font-size:13px;font-style:italic}
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(4px)}
 .modal-bg.show{display:flex}
