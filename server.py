@@ -1,11 +1,11 @@
-import os, json, datetime
+import os, datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from cryptography.fernet import Fernet
 
 import psycopg2
-from psycopg2.extras import RealDictCursor
 from psycopg2.pool import ThreadedConnectionPool
+from psycopg2.extras import RealDictCursor
 
 app = Flask(__name__)
 CORS(app)
@@ -16,18 +16,21 @@ CORS(app)
 STATE = {
     "mood": 0.5,
     "energy": 0.5,
-    "active_message": "启动中",
+    "active_message": "系统启动中",
     "last_thought": ""
 }
 
 # =========================
 # ENCRYPTION
 # =========================
-KEY = os.environ.get("MEMORY_KEY", Fernet.generate_key().decode())
+KEY = os.environ.get("MEMORY_KEY")
+if not KEY:
+    KEY = Fernet.generate_key().decode()
+
 cipher = Fernet(KEY.encode())
 
-def encrypt(t): return cipher.encrypt(t.encode()).decode()
-def decrypt(t):
+def enc(t): return cipher.encrypt(t.encode()).decode()
+def dec(t):
     try:
         return cipher.decrypt(t.encode()).decode()
     except:
@@ -37,23 +40,22 @@ def decrypt(t):
 # DATABASE
 # =========================
 DB_URL = os.environ.get("DATABASE_URL", "")
-
 if DB_URL.startswith("postgres://"):
     DB_URL = DB_URL.replace("postgres://", "postgresql://", 1)
 
-db_pool = None
+pool = None
 
 def init_db():
-    global db_pool
+    global pool
     try:
-        db_pool = ThreadedConnectionPool(
+        pool = ThreadedConnectionPool(
             1, 10,
             dsn=DB_URL,
             sslmode="require"
         )
         print("✅ DB connected")
 
-        conn = db_pool.getconn()
+        conn = pool.getconn()
         cur = conn.cursor()
         cur.execute("""
             CREATE TABLE IF NOT EXISTS memories (
@@ -64,52 +66,55 @@ def init_db():
             )
         """)
         conn.commit()
-        db_pool.putconn(conn)
+        pool.putconn(conn)
 
     except Exception as e:
-        print("DB error:", e)
-        db_pool = None
+        print("DB ERROR:", e)
+        pool = None
 
 init_db()
 
+# =========================
+# MEMORY CORE
+# =========================
 def save_memory(text, area="法典"):
-    if not db_pool:
+    if not pool:
         return False
-    conn = db_pool.getconn()
+    conn = pool.getconn()
     cur = conn.cursor()
     cur.execute(
         "INSERT INTO memories(area, content) VALUES (%s,%s)",
-        (area, encrypt(text))
+        (area, enc(text))
     )
     conn.commit()
-    db_pool.putconn(conn)
+    pool.putconn(conn)
     return True
 
 def read_memory(limit=50):
-    if not db_pool:
+    if not pool:
         return []
-    conn = db_pool.getconn()
+    conn = pool.getconn()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("SELECT * FROM memories ORDER BY time DESC LIMIT %s", (limit,))
     rows = cur.fetchall()
-    db_pool.putconn(conn)
+    pool.putconn(conn)
 
     for r in rows:
-        r["content"] = decrypt(r["content"])
+        r["content"] = dec(r["content"])
     return rows
 
 def delete_memory(mid):
-    if not db_pool:
+    if not pool:
         return False
-    conn = db_pool.getconn()
+    conn = pool.getconn()
     cur = conn.cursor()
     cur.execute("DELETE FROM memories WHERE id=%s", (mid,))
     conn.commit()
-    db_pool.putconn(conn)
+    pool.putconn(conn)
     return True
 
 # =========================
-# MCP (Claude)
+# MCP (Claude tools)
 # =========================
 @app.route("/mcp", methods=["GET", "POST"])
 def mcp():
@@ -127,11 +132,11 @@ def mcp():
     if method == "tools/list":
         return ok({
             "tools": [
-                {"name": "save_memory"},
-                {"name": "get_memories"},
-                {"name": "delete_memory"},
-                {"name": "get_state"},
-                {"name": "get_stats"}
+                "save_memory",
+                "get_memories",
+                "delete_memory",
+                "get_state",
+                "get_stats"
             ]
         })
 
@@ -155,12 +160,11 @@ def mcp():
         if name == "get_stats":
             return ok({"count": len(read_memory(9999))})
 
-    return ok({"error": "unknown method"})
+    return ok({"error": "unknown"})
 
 # =========================
-# WEB UI APIs（关键补齐）
+# WEB API（前端必须）
 # =========================
-
 @app.route("/api/state")
 def api_state():
     return jsonify(STATE)
@@ -173,10 +177,10 @@ def api_chat():
     save_memory(msg)
 
     STATE["last_thought"] = msg[:30]
-    STATE["active_message"] = "我已收到"
+    STATE["active_message"] = "已收到"
 
     return jsonify({
-        "reply": "已保存到记忆",
+        "reply": "已写入记忆岛屿",
         "state": STATE
     })
 
@@ -217,12 +221,12 @@ def api_restore():
 def home():
     return jsonify({
         "status": "running",
-        "db": db_pool is not None,
+        "db": pool is not None,
         "version": "5.0"
     })
 
 # =========================
-# RUN
+# START
 # =========================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 3000)))
