@@ -155,8 +155,8 @@ def backup():
 def restore():
     data = request.get_json() or []data = request.get_json() 或 []
 
-    if not isinstance(data, list):如果 不是  isinstance(data, list):数据，列表):
-        return返回 jsonify({"error"“错误”返回jsonify({"error"“错误”“错误”“错误”: "bad format"“格式错误”“格式错误”}), 400返回 jsonify({"error"“错误”“错误”: "格式错误"}), 400
+    if如果 not不 isinstance(data, list)数据，列表):如果 不是  isinstance(data, list)数据，列表):数据，列表):
+        return jsonify({"error": "bad format"}), 400返回 jsonify({"error": "格式错误"}), 400返回 jsonify({"error": "bad format"}), 400返回jsonify({"error": "格式错误"}), 400
 
     for item in data:
         cur.execute(
@@ -164,13 +164,13 @@ def restore():
             (item.get("area", "法典"), item.get("content", ""))
         )
 
-    conn.commit()连接。提交()连接。提交()连接。提交()
+    conn.commit()连接。提交()连接。提交()连接。提交()连接。提交()连接。提交()连接。提交()连接。提交()
 
     return返回 jsonify({"restored"“已恢复”: len(data)})数据)})返回jsonify({"restored"“已恢复”:len(data)})数据)})返回 jsonify({"恢复成功": len(数据)})
 
 # =========================
 # RUN# 运行
 # =========================
-if __name__ == "__main__":如果__name__ =="__main__":如果__name__ =="__main__":如果__name__ =="__main__":
+if __name__ == "__main__":如果__name__ =="__main__":
     port = int(os.environ.get("PORT", 3000))
     app.run(host="0.0.0.0", port=port)
