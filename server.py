@@ -3,17 +3,16 @@ import json
 import datetime
 import io
 import zipfile
+import psycopg2
+import psycopg2.extras
 from flask import Flask, request, jsonify, Response, send_file, render_template
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-# =====================
-# 内存存储
-# =====================
-MEMORIES = []
-AUTO_ID = 1
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:iTdnKHeCrIAXletVRPmyCKSlFojZWoiu@postgres.railway.internal:5432/railway")
+
 STATE = {
     "mood": 0.5,
     "energy": 0.5,
@@ -22,48 +21,80 @@ STATE = {
 }
 
 # =====================
+# 数据库初始化
+# =====================
+def get_conn():
+    return psycopg2.connect(DATABASE_URL)
+
+def init_db():
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS memories (
+                    id SERIAL PRIMARY KEY,
+                    content TEXT NOT NULL,
+                    area TEXT DEFAULT '法典',
+                    tags TEXT DEFAULT '',
+                    time TIMESTAMP DEFAULT NOW()
+                )
+            """)
+        conn.commit()
+
+# =====================
 # 工具函数
 # =====================
 def save_memory(content, area="法典", tags=""):
-    global AUTO_ID
-    mem = {
-        "id": AUTO_ID,
-        "content": content,
-        "area": area,
-        "tags": tags,
-        "time": datetime.datetime.utcnow().isoformat()
-    }
-    AUTO_ID += 1
-    MEMORIES.append(mem)
-    return mem
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO memories (content, area, tags) VALUES (%s, %s, %s) RETURNING id, content, area, tags, time",
+                (content, area, tags)
+            )
+            row = cur.fetchone()
+        conn.commit()
+    return {"id": row[0], "content": row[1], "area": row[2], "tags": row[3], "time": row[4].isoformat()}
 
 def get_memories(area=None, search=None, limit=200):
-    result = list(reversed(MEMORIES))
-    if area:
-        result = [m for m in result if m.get("area") == area]
-    if search:
-        sl = search.lower()
-        result = [m for m in result if sl in m.get("content", "").lower()]
-    return result[:limit]
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            sql = "SELECT id, content, area, tags, time FROM memories"
+            conds, vals = [], []
+            if area:
+                conds.append("area = %s"); vals.append(area)
+            if search:
+                conds.append("content ILIKE %s"); vals.append(f"%{search}%")
+            if conds:
+                sql += " WHERE " + " AND ".join(conds)
+            sql += " ORDER BY id DESC LIMIT %s"
+            vals.append(limit)
+            cur.execute(sql, vals)
+            rows = cur.fetchall()
+    return [{"id": r[0], "content": r[1], "area": r[2], "tags": r[3], "time": r[4].isoformat()} for r in rows]
 
 def delete_memory(mid):
-    global MEMORIES
-    before = len(MEMORIES)
-    MEMORIES = [m for m in MEMORIES if m["id"] != mid]
-    return before != len(MEMORIES)
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM memories WHERE id = %s", (mid,))
+            deleted = cur.rowcount
+        conn.commit()
+    return deleted > 0
 
 def get_state():
     return dict(STATE)
 
 def get_stats():
-    areas = {}
-    for m in MEMORIES:
-        a = m.get("area", "法典")
-        areas[a] = areas.get(a, 0) + 1
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM memories")
+            total = cur.fetchone()[0]
+            cur.execute("SELECT area, COUNT(*) FROM memories GROUP BY area")
+            areas = {r[0]: r[1] for r in cur.fetchall()}
+            cur.execute("SELECT MAX(time) FROM memories")
+            last = cur.fetchone()[0]
     return {
-        "total": len(MEMORIES),
+        "total": total,
         "areas": areas,
-        "last_saved": MEMORIES[-1]["time"] if MEMORIES else None
+        "last_saved": last.isoformat() if last else None
     }
 
 # =====================
@@ -91,7 +122,7 @@ TOOLS = [
             "properties": {
                 "area":   {"type": "string", "description": "按区域过滤（可选）"},
                 "search": {"type": "string", "description": "关键词搜索（可选）"},
-                "limit":  {"type": "number",  "description": "最多返回条数，默认200"}
+                "limit":  {"type": "number", "description": "最多返回条数，默认200"}
             }
         }
     },
@@ -109,18 +140,12 @@ TOOLS = [
     {
         "name": "get_state",
         "description": "获取当前岛屿状态（情绪、能量、活跃信息）",
-        "inputSchema": {
-            "type": "object",
-            "properties": {}
-        }
+        "inputSchema": {"type": "object", "properties": {}}
     },
     {
         "name": "get_stats",
         "description": "获取记忆库统计（总数、各区域分布、最后保存时间）",
-        "inputSchema": {
-            "type": "object",
-            "properties": {}
-        }
+        "inputSchema": {"type": "object", "properties": {}}
     }
 ]
 
@@ -142,7 +167,7 @@ def handle_rpc(data):
         return ok({
             "protocolVersion": "2024-11-05",
             "capabilities": {"tools": {}},
-            "serverInfo": {"name": "memory-island", "version": "10.0"}
+            "serverInfo": {"name": "memory-island", "version": "11.0"}
         })
 
     if method in ("notifications/initialized", "notifications/cancelled"):
@@ -159,17 +184,9 @@ def handle_rpc(data):
         args = params.get("arguments", {})
 
         if name == "save_memory":
-            result = save_memory(
-                args.get("content", ""),
-                args.get("area", "法典"),
-                args.get("tags", "")
-            )
+            result = save_memory(args.get("content", ""), args.get("area", "法典"), args.get("tags", ""))
         elif name == "get_memories":
-            result = get_memories(
-                area=args.get("area"),
-                search=args.get("search"),
-                limit=int(args.get("limit", 200))
-            )
+            result = get_memories(area=args.get("area"), search=args.get("search"), limit=int(args.get("limit", 200)))
         elif name == "delete_memory":
             result = {"deleted": delete_memory(args.get("id"))}
         elif name == "get_state":
@@ -179,17 +196,13 @@ def handle_rpc(data):
         else:
             return err(-32601, f"未知工具: {name}")
 
-        return ok({
-            "content": [
-                {"type": "text", "text": json.dumps(result, ensure_ascii=False)}
-            ]
-        })
+        return ok({"content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}]})
 
     return err(-32601, f"未知方法: {method}")
 
 
 # =====================
-# MCP 端点 —— Streamable HTTP
+# MCP 端点
 # =====================
 @app.route("/mcp", methods=["GET", "POST", "OPTIONS"])
 def mcp():
@@ -252,7 +265,7 @@ def api_stats():
     return jsonify(get_stats())
 
 # =====================
-# 批量导入（每批 3 块，纯内存操作，不会超时）
+# 批量导入
 # =====================
 @app.route("/api/upload_chunks", methods=["POST"])
 def api_upload_chunks():
@@ -261,38 +274,47 @@ def api_upload_chunks():
     area   = data.get("area", "法典")
     tags   = data.get("tags", "")
     saved  = 0
-    for c in chunks:
-        if c and c.strip():
-            save_memory(c.strip(), area, tags)
-            saved += 1
-    return jsonify({"saved": saved, "total": len(MEMORIES)})
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            for c in chunks:
+                if c and c.strip():
+                    cur.execute(
+                        "INSERT INTO memories (content, area, tags) VALUES (%s, %s, %s)",
+                        (c.strip(), area, tags)
+                    )
+                    saved += 1
+        conn.commit()
+    return jsonify({"saved": saved})
 
 # =====================
 # 备份 / 恢复
 # =====================
 @app.route("/api/backup")
 def api_backup():
+    mems = get_memories(limit=99999)
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("memories.json", json.dumps(MEMORIES, ensure_ascii=False, indent=2))
-        z.writestr("state.json",    json.dumps(STATE,    ensure_ascii=False, indent=2))
+        z.writestr("memories.json", json.dumps(mems, ensure_ascii=False, indent=2))
+        z.writestr("state.json",    json.dumps(STATE, ensure_ascii=False, indent=2))
     buf.seek(0)
-    return send_file(
-        buf,
-        mimetype="application/octet-stream",
-        as_attachment=True,
-        download_name=f"shun_memory_{datetime.date.today()}.enc"
-    )
+    return send_file(buf, mimetype="application/octet-stream", as_attachment=True,
+                     download_name=f"shun_memory_{datetime.date.today()}.enc")
 
 @app.route("/api/restore", methods=["POST"])
 def api_restore():
-    global MEMORIES, AUTO_ID
     try:
         buf = io.BytesIO(request.get_data())
         with zipfile.ZipFile(buf, "r") as z:
             mems = json.loads(z.read("memories.json").decode())
-        MEMORIES = mems
-        AUTO_ID  = max((m["id"] for m in mems), default=0) + 1
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM memories")
+                for m in mems:
+                    cur.execute(
+                        "INSERT INTO memories (content, area, tags) VALUES (%s, %s, %s)",
+                        (m.get("content",""), m.get("area","法典"), m.get("tags",""))
+                    )
+            conn.commit()
         return jsonify({"restored": len(mems)})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -309,14 +331,15 @@ def index():
 # =====================
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok", "version": "10.0", "memories": len(MEMORIES)})
+    try:
+        stats = get_stats()
+        return jsonify({"status": "ok", "version": "11.0", "memories": stats["total"], "db": "connected"})
+    except Exception as e:
+        return jsonify({"status": "error", "db": str(e)}), 500
 
 # =====================
 # 启动
 # =====================
 if __name__ == "__main__":
-    app.run(
-        host="0.0.0.0",
-        port=int(os.environ.get("PORT", 3000)),
-        threaded=True
-    )
+    init_db()
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 3000)), threaded=True)
