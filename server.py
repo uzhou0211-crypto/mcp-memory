@@ -6,39 +6,37 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# ======================
-# 内存系统
-# ======================
+# =====================
+# 内存
+# =====================
+MEMORIES = []
 STATE = {
     "mood": 0.5,
     "energy": 0.5,
     "active_message": "我在这里",
     "last_thought": "初始化完成"
 }
-
-MEMORIES = []
 AUTO_ID = 1
 
 
-# ======================
-# Memory Core
-# ======================
-def save_memory(content, area="法典"):
+# =====================
+# 工具函数
+# =====================
+def save_memory(content):
     global AUTO_ID
     mem = {
         "id": AUTO_ID,
-        "time": datetime.datetime.utcnow().isoformat(),
-        "area": area,
         "content": content,
-        "tags": ""
+        "time": datetime.datetime.utcnow().isoformat(),
+        "area": "法典"
     }
     AUTO_ID += 1
     MEMORIES.append(mem)
     return mem
 
 
-def get_memories(limit=50):
-    return MEMORIES[-limit:][::-1]
+def get_memories():
+    return list(reversed(MEMORIES))
 
 
 def delete_memory(mid):
@@ -48,61 +46,45 @@ def delete_memory(mid):
     return before != len(MEMORIES)
 
 
-def get_state():
-    return STATE
-
-
-def get_stats():
-    return {
-        "count": len(MEMORIES),
-        "last_id": AUTO_ID - 1
-    }
-
-
-# ======================
-# Web API（给你的网页用）
-# ======================
-@app.route("/")
-def home():
-    return jsonify({"status": "running", "db": True, "version": "6.0"})
-
-
+# =====================
+# 普通 API（网页用）
+# =====================
 @app.route("/api/chat", methods=["POST"])
-def api_chat():
+def chat():
     data = request.get_json(force=True)
     msg = data.get("message", "")
-
     mem = save_memory(msg)
 
     return jsonify({
-        "reply": "已记录：" + msg,
+        "reply": "已保存：" + msg,
         "state": STATE,
         "memory": mem
     })
 
 
 @app.route("/api/read")
-def api_read():
+def read():
     return jsonify(get_memories())
 
 
 @app.route("/api/state")
-def api_state():
-    return jsonify(get_state())
+def state():
+    return jsonify(STATE)
 
 
 @app.route("/api/delete/<int:mid>", methods=["DELETE"])
-def api_delete(mid):
+def delete(mid):
     return jsonify({"ok": delete_memory(mid)})
 
 
-# ======================
-# MCP STANDARD（关键修复）
-# ======================
-@app.route("/mcp", methods=["POST", "GET"])
+# =====================
+# MCP（关键：Claude依赖这个）
+# =====================
+@app.route("/mcp", methods=["GET", "POST"])
 def mcp():
+    # Claude探活
     if request.method == "GET":
-        return jsonify({"status": "ok", "version": "6.0-mcp"})
+        return jsonify({"status": "ok", "version": "7.0-mcp"})
 
     data = request.get_json(force=True)
 
@@ -110,7 +92,7 @@ def mcp():
     req_id = data.get("id", 1)
     params = data.get("params", {})
 
-    def ok(result):
+    def response(result):
         return jsonify({
             "jsonrpc": "2.0",
             "id": req_id,
@@ -118,23 +100,23 @@ def mcp():
         })
 
     # -------------------------
-    # initialize
+    # 1. initialize
     # -------------------------
     if method == "initialize":
-        return ok({
+        return response({
             "name": "memory-island",
-            "version": "6.0"
+            "version": "7.0"
         })
 
     # -------------------------
-    # tools/list（Claude必须标准）
+    # 2. tools/list（Claude最关键）
     # -------------------------
     if method == "tools/list":
-        return ok({
+        return response({
             "tools": [
                 {
                     "name": "save_memory",
-                    "description": "Save a memory",
+                    "description": "保存记忆",
                     "input_schema": {
                         "type": "object",
                         "properties": {
@@ -145,15 +127,12 @@ def mcp():
                 },
                 {
                     "name": "get_memories",
-                    "description": "Get memories",
-                    "input_schema": {
-                        "type": "object",
-                        "properties": {}
-                    }
+                    "description": "获取记忆",
+                    "input_schema": {"type": "object"}
                 },
                 {
                     "name": "delete_memory",
-                    "description": "Delete memory",
+                    "description": "删除记忆",
                     "input_schema": {
                         "type": "object",
                         "properties": {
@@ -161,50 +140,33 @@ def mcp():
                         },
                         "required": ["id"]
                     }
-                },
-                {
-                    "name": "get_state",
-                    "description": "Get state",
-                    "input_schema": {"type": "object"}
-                },
-                {
-                    "name": "get_stats",
-                    "description": "Get stats",
-                    "input_schema": {"type": "object"}
                 }
             ]
         })
 
     # -------------------------
-    # tools/call
+    # 3. tools/call
     # -------------------------
     if method == "tools/call":
         name = params.get("name")
         args = params.get("arguments", {})
 
         if name == "save_memory":
-            return ok(save_memory(args.get("content", "")))
+            return response(save_memory(args.get("content", "")))
 
         if name == "get_memories":
-            return ok(get_memories())
+            return response(get_memories())
 
         if name == "delete_memory":
-            return ok({"deleted": delete_memory(args.get("id"))})
+            return response({"deleted": delete_memory(args.get("id"))})
 
-        if name == "get_state":
-            return ok(get_state())
+        return response({"error": "unknown tool"})
 
-        if name == "get_stats":
-            return ok(get_stats())
-
-        return ok({"error": "unknown tool"})
-
-    return ok({"error": "unknown method"})
+    return response({"error": "unknown method"})
 
 
-# ======================
+# =====================
 # 启动
-# ======================
+# =====================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 3000)))
-
