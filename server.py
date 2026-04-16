@@ -1,26 +1,18 @@
 import os
 import json
 import datetime
-import queue
-import threading
-from flask import Flask, request, jsonify, Response, stream_with_context
+from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # =====================
 # 内存存储
 # =====================
 MEMORIES = []
-STATE = {"mood": 0.5, "energy": 0.5, "active_message": "我在这里", "last_thought": "初始化完成"}
 AUTO_ID = 1
-SSE_QUEUES = {}
-SSE_LOCK = threading.Lock()
 
-# =====================
-# 工具函数
-# =====================
 def save_memory(content):
     global AUTO_ID
     mem = {
@@ -79,36 +71,36 @@ TOOLS = [
 ]
 
 # =====================
-# JSON-RPC 处理核心
+# JSON-RPC 处理
 # =====================
 def handle_rpc(data):
     method = data.get("method", "")
-    req_id = data.get("id", 1)
+    req_id = data.get("id")
     params = data.get("params", {})
 
     def ok(result):
         return {"jsonrpc": "2.0", "id": req_id, "result": result}
 
     def err(code, message):
-        return {"jsonrpc": "2.0", "id": req_id, "error": {"code": code, "message": message}}
+        return {"jsonrpc": "2.0", "id": req_id,
+                "error": {"code": code, "message": message}}
 
-    # 握手
     if method == "initialize":
         return ok({
             "protocolVersion": "2024-11-05",
             "capabilities": {"tools": {}},
-            "serverInfo": {"name": "memory-island", "version": "8.0"}
+            "serverInfo": {"name": "memory-island", "version": "9.0"}
         })
 
-    # 初始化通知，不需要回复
-    if method == "notifications/initialized":
+    if method in ("notifications/initialized", "notifications/cancelled"):
         return None
 
-    # 列出工具
+    if method == "ping":
+        return ok({})
+
     if method == "tools/list":
         return ok({"tools": TOOLS})
 
-    # 调用工具
     if method == "tools/call":
         name = params.get("name")
         args = params.get("arguments", {})
@@ -128,93 +120,65 @@ def handle_rpc(data):
             ]
         })
 
-    # ping/pong
-    if method == "ping":
-        return ok({})
-
     return err(-32601, f"未知方法: {method}")
 
 
 # =====================
-# SSE 端点（Claude.ai 连接入口）
+# MCP 主端点 —— Streamable HTTP 模式
 # =====================
-@app.route("/mcp", methods=["GET"])
-def mcp_sse():
-    session_id = os.urandom(8).hex()
-    msg_queue = queue.Queue()
+@app.route("/mcp", methods=["GET", "POST", "OPTIONS"])
+def mcp():
+    if request.method == "OPTIONS":
+        return _cors_response("", 204)
 
-    with SSE_LOCK:
-        SSE_QUEUES[session_id] = msg_queue
+    if request.method == "GET":
+        return _cors_response("", 204)
 
-    def generate():
-        try:
-            # 告诉 Claude 消息要 POST 到哪里
-            endpoint_url = request.host_url.rstrip("/") + f"/mcp/message?session={session_id}"
-            yield f"event: endpoint\ndata: {endpoint_url}\n\n"
+    raw = request.get_data(as_text=True)
+    try:
+        data = json.loads(raw)
+    except Exception:
+        resp_body = json.dumps({
+            "jsonrpc": "2.0", "id": None,
+            "error": {"code": -32700, "message": "Parse error"}
+        })
+        return _cors_response(resp_body, 400, "application/json")
 
-            # 保持连接
-            while True:
-                try:
-                    msg = msg_queue.get(timeout=25)
-                    yield f"data: {json.dumps(msg, ensure_ascii=False)}\n\n"
-                except queue.Empty:
-                    yield ": ping\n\n"  # 心跳，防止 Railway / nginx 断连
-        finally:
-            with SSE_LOCK:
-                SSE_QUEUES.pop(session_id, None)
-
-    return Response(
-        stream_with_context(generate()),
-        mimetype="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-            "Connection": "keep-alive",
-        }
-    )
-
-
-# =====================
-# 消息接收端点
-# =====================
-@app.route("/mcp/message", methods=["POST"])
-def mcp_message():
-    session_id = request.args.get("session")
-    data = request.get_json(force=True)
+    if isinstance(data, list):
+        results = [handle_rpc(item) for item in data]
+        results = [r for r in results if r is not None]
+        if not results:
+            return _cors_response("", 202)
+        return _cors_response(json.dumps(results, ensure_ascii=False), 200, "application/json")
 
     result = handle_rpc(data)
-
     if result is None:
-        return "", 202
+        return _cors_response("", 202)
 
-    # 如果有 SSE 会话就通过队列推送，否则直接 HTTP 返回
-    if session_id:
-        with SSE_LOCK:
-            q = SSE_QUEUES.get(session_id)
-        if q:
-            q.put(result)
-            return "", 202
+    return _cors_response(json.dumps(result, ensure_ascii=False), 200, "application/json")
 
-    return jsonify(result)
+
+def _cors_response(body, status=200, content_type="text/plain"):
+    resp = Response(body, status=status, content_type=content_type)
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, Mcp-Session-Id"
+    return resp
 
 
 # =====================
-# 普通 REST API（网页/调试用）
+# 普通 REST API
 # =====================
+@app.route("/api/read")
+def api_read():
+    return jsonify(get_memories())
+
 @app.route("/api/chat", methods=["POST"])
-def chat():
+def api_chat():
     data = request.get_json(force=True)
     msg = data.get("message", "")
     mem = save_memory(msg)
-    return jsonify({"reply": "已保存：" + msg, "state": STATE, "memory": mem})
-
-@app.route("/api/read")
-def read():
-    return jsonify(get_memories())
-
-@app.route("/api/state")
-def api_state():
-    return jsonify(STATE)
+    return jsonify({"reply": "已保存：" + msg, "memory": mem})
 
 @app.route("/api/delete/<int:mid>", methods=["DELETE"])
 def api_delete(mid):
@@ -222,7 +186,7 @@ def api_delete(mid):
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok", "version": "8.0", "memories": len(MEMORIES)})
+    return jsonify({"status": "ok", "version": "9.0", "memories": len(MEMORIES)})
 
 
 # =====================
@@ -232,5 +196,5 @@ if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=int(os.environ.get("PORT", 3000)),
-        threaded=True   # 必须开多线程，SSE 长连接才不会阻塞其他请求
+        threaded=True
     )
