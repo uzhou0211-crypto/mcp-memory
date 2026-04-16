@@ -3,7 +3,7 @@ import json
 import datetime
 import io
 import zipfile
-from flask import Flask, request, jsonify, Response, send_file
+from flask import Flask, request, jsonify, Response, send_file, send_from_directory
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -296,6 +296,13 @@ def api_restore():
         return jsonify({"restored": len(mems)})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+# =====================
+# 前端页面
+# =====================
+@app.route("/")
+def index():
+    return send_from_directory(".", "index.html")
 
 # =====================
 # 健康检查
