@@ -123,7 +123,7 @@ def upload_chunks():
             (area, c)
         )
 
-    conn.commit()连接。提交()
+    conn.commit()
 
     return jsonify({
         "saved": len(chunks)
@@ -155,8 +155,8 @@ def backup():
 def restore():
     data = request.get_json(force=True, silent=True)
 
-    if not isinstance(data, list):如果 不是  isinstance(data, list):如果 不是 isinstance(data, 列表):如果 不是isinstance(data, 列表):
-        return jsonify({"error": "bad format"}), 400返回 jsonify({"error": "格式错误"}), 400返回 jsonify({"error": "bad format"}), 400返回jsonify({"error": "格式错误"}), 400
+    if not isinstance(data, list):如果 不是  isinstance(data, list):数据，列表):
+        return返回 jsonify({"error"“错误”“错误”: "bad format"“格式错误”“格式错误”}), 400返回 jsonify({"error"“错误”“错误”: "格式错误"}), 400
 
     for item in data:
         cur.execute(
@@ -164,10 +164,10 @@ def restore():
             (item.get("area","法典"), item.get("content",""))
         )
 
-    conn.commit()连接。提交()连接。提交()连接。提交()
+    conn.commit()连接。提交()连接。提交()连接。提交()连接。提交()连接。提交()连接。提交()连接。提交()
 
-    return jsonify({"restored": len(data)})返回 jsonify({"恢复成功": len(数据)})
+    return jsonify({"restored"“已恢复”: len(data)})返回 jsonify({"恢复成功": len(数据)})
 
 # =========================
-if __name__ == "__main__":如果__name__ =="__main__":如果__name__ =="__main__":如果__name__ =="__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 3000)))
+if __name__ == "__main__":如果__name__ =="__main__":
+    app.run运行运行(应用。run运行(host="0.0.0.0"主机="0.0.0.0", port=int(os.environ.get获取("PORT", 3000)))
