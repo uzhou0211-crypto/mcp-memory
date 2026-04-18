@@ -227,7 +227,14 @@ async function loadFile(file) {
   }
 
   document.getElementById('loadProgress').style.display = 'none';
-  document.getElementById('reader').style.display = 'block';
+  const readerEl = document.getElementById('reader');
+  readerEl.style.display = 'block';
+  readerEl.style.visibility = 'visible';
+  readerEl.style.opacity = '1';
+  readerEl.style.height = 'auto';
+  readerEl.style.minHeight = '100px';
+  // force repaint
+  readerEl.offsetHeight;
 }
 
 async function loadTXT(file) {
