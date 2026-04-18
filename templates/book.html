@@ -93,13 +93,13 @@ header{padding:12px 20px;display:flex;align-items:center;justify-content:space-b
   <header>
     <div class="logo">&#128214; &#35835;&#20070;&#23707;</div>
     <div class="book-info" id="bookInfo">&#36824;&#27809;&#26377;&#25171;&#24320;&#20070;</div>
-    <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-3)">
-      <button onclick="changeFontSize(-1)" style="width:28px;height:28px;border:1px solid var(--border);border-radius:50%;background:transparent;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink-2)">A</button>
-      <span id="fontSizeLabel" style="font-size:11px;min-width:30px;text-align:center">18px</span>
-      <button onclick="changeFontSize(1)" style="width:32px;height:32px;border:1px solid var(--border);border-radius:50%;background:transparent;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink-2)">A</button>
-    </div>
     <a href="/" class="hdr-btn">&#127965; &#36820;&#22238;&#23707;&#23627;</a>
     <button class="hdr-btn" onclick="document.getElementById('fileInput').click()">&#25442;&#19968;&#26412;&#20070;</button>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <button onclick="changeFontSize(-1)" style="width:28px;height:28px;border:1px solid var(--border);border-radius:50%;background:transparent;font-size:13px;cursor:pointer;color:var(--ink-2);">A-</button>
+      <span id="fontSizeLabel" style="font-size:11px;min-width:32px;text-align:center;color:var(--ink-3);">18px</span>
+      <button onclick="changeFontSize(1)" style="width:28px;height:28px;border:1px solid var(--border);border-radius:50%;background:transparent;font-size:16px;cursor:pointer;color:var(--ink-2);">A+</button>
+    </div>
   </header>
 
   <div class="main">
