@@ -1,498 +1,521 @@
-<!DOCTYPE html>
+import os
+import json
+import datetime
+import io
+import zipfile
+import math
+import threading
+import time
+import psycopg2
+from flask import Flask, request, jsonify, Response, send_file, render_template
+from flask_cors import CORS
 
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>小顺的读书岛</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;600&family=Noto+Sans+SC:wght@300;400;500&display=swap');
-:root{--ink:#1c1a18;--ink-2:#4a4640;--ink-3:#9a9490;--paper:#faf8f4;--paper-2:#f3f0ea;--paper-3:#ece8e0;--warm:#c96442;--warm-soft:#f0ddd5;--teal:#4a8a80;--teal-soft:#d5eae8;--border:rgba(28,26,24,.1);--r:14px;--r-sm:9px}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;overflow:hidden;font-family:'Noto Sans SC',sans-serif;background:var(--paper);color:var(--ink);font-size:14px;line-height:1.7}
-#lockScreen{position:fixed;inset:0;background:var(--paper);z-index:999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px}
-#lockScreen h2{font-family:'Noto Serif SC',serif;font-size:20px}
-#lockInput{padding:10px 16px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--paper-2);color:var(--ink);font-family:inherit;font-size:14px;outline:none;width:220px;text-align:center}
-#lockInput:focus{border-color:var(--warm)}
-#lockBtn{padding:9px 28px;background:var(--warm);border:none;border-radius:var(--r-sm);color:#fff;font-family:inherit;font-size:14px;cursor:pointer}
-#lockErr{font-size:12px;color:var(--warm);min-height:18px}
-.app{display:flex;flex-direction:column;height:100%}
-header{padding:12px 20px;display:flex;align-items:center;justify-content:space-between;background:rgba(250,248,244,.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);flex-shrink:0;gap:10px}
-.logo{font-family:'Noto Serif SC',serif;font-size:16px;font-weight:600;white-space:nowrap}
-.book-info{font-size:12px;color:var(--ink-3);flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hdr-btn{padding:5px 12px;border:1px solid var(--border);border-radius:var(--r-sm);background:transparent;color:var(--ink-2);font-family:inherit;font-size:12px;cursor:pointer;white-space:nowrap;transition:all .15s}
-.hdr-btn:hover{background:var(--warm-soft);border-color:var(--warm);color:var(--warm)}
-.main{flex:1;display:flex;overflow:hidden;min-height:0}
-.book-area{flex:1;display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--border)}
-#dropZone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px;cursor:pointer;transition:all .2s}
-#dropZone:hover,#dropZone.drag{background:var(--warm-soft)}
-#dropZone .icon{font-size:48px}
-#dropZone h3{font-family:'Noto Serif SC',serif;font-size:18px;color:var(--ink-2)}
-#dropZone p{font-size:13px;color:var(--ink-3);text-align:center;line-height:1.8}
-#dropZone .tip{font-size:11px;color:var(--ink-3);background:var(--paper-2);padding:8px 14px;border-radius:var(--r-sm);border:1px solid var(--border)}
-#fileInput{display:none}
-.upload-btn{padding:10px 24px;background:var(--warm);border:none;border-radius:var(--r-sm);color:#fff;font-family:inherit;font-size:14px;cursor:pointer}
-.upload-btn:hover{background:#b85538}
-#reader{flex:1;overflow-y:auto;padding:32px 48px;display:none;line-height:2;font-family:'Noto Serif SC',serif;font-size:15px;color:var(--ink)}
-#reader::-webkit-scrollbar{width:4px}
-#reader::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-#reader p{margin-bottom:1em}
-#reader h1,#reader h2,#reader h3{font-family:'Noto Serif SC',serif;margin:1.5em 0 .5em;color:var(--ink)}
-#reader h1{font-size:1.4em}
-#reader h2{font-size:1.2em}
-#reader h3{font-size:1.1em}
-::selection{background:rgba(201,100,66,.25)}
-#loadProgress{display:none;padding:40px;text-align:center;color:var(--ink-3);font-size:13px}
-.prog-bar{height:4px;background:var(--paper-3);border-radius:2px;overflow:hidden;margin:12px auto;max-width:240px}
-.prog-fill{height:100%;background:var(--teal);border-radius:2px;transition:width .3s}
-.note-panel{width:320px;display:flex;flex-direction:column;overflow:hidden;background:var(--paper-2)}
-.note-head{padding:12px 16px;border-bottom:1px solid var(--border);font-family:'Noto Serif SC',serif;font-size:12px;color:var(--ink-3);letter-spacing:.08em;flex-shrink:0}
-.note-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
-.note-body::-webkit-scrollbar{width:3px}
-.note-body::-webkit-scrollbar-thumb{background:var(--border)}
-.field-label{font-size:11px;color:var(--ink-3);margin-bottom:5px;letter-spacing:.05em}
-.quote-box{width:100%;padding:10px 12px;border:1px solid rgba(201,100,66,.3);border-radius:var(--r-sm);background:var(--warm-soft);color:var(--ink);font-family:'Noto Serif SC',serif;font-size:13px;resize:none;outline:none;min-height:80px;max-height:160px;line-height:1.7;font-style:italic}
-.quote-box:focus{border-color:var(--warm)}
-.note-box{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--paper);color:var(--ink);font-family:'Noto Sans SC',sans-serif;font-size:13px;resize:none;outline:none;min-height:80px;max-height:160px;line-height:1.7}
-.note-box:focus{border-color:var(--teal)}
-.book-field{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--paper);color:var(--ink);font-family:inherit;font-size:13px;outline:none}
-.book-field:focus{border-color:var(--warm)}
-.hint{font-size:11px;color:var(--ink-3);font-style:italic;padding:8px 10px;background:var(--paper);border-radius:var(--r-sm);border-left:2px solid var(--teal)}
-.submit-btn{width:100%;padding:11px;background:var(--warm);border:none;border-radius:var(--r-sm);color:#fff;font-family:'Noto Serif SC',serif;font-size:14px;cursor:pointer;transition:all .15s;letter-spacing:.04em}
-.submit-btn:hover{background:#b85538}
-.submit-btn:disabled{background:var(--paper-3);color:var(--ink-3);cursor:not-allowed}
-.history-list{display:flex;flex-direction:column;gap:8px}
-.note-item{padding:10px 12px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--paper);font-size:12px}
-.note-item-quote{font-family:'Noto Serif SC',serif;font-style:italic;color:var(--ink-2);margin-bottom:5px;border-left:2px solid var(--warm);padding-left:8px}
-.note-item-note{color:var(--ink);line-height:1.6}
-.note-item-meta{font-size:10px;color:var(--ink-3);margin-top:5px}
-.no-notes{text-align:center;padding:20px;color:var(--ink-3);font-size:12px;font-style:italic}
-#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--ink);color:#faf8f4;padding:9px 18px;border-radius:20px;font-size:13px;opacity:0;transition:all .25s;z-index:9999;pointer-events:none;white-space:nowrap}
-#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-#toast.warn{background:var(--warm)}
-.mobile-note-btn{display:none;position:fixed;bottom:20px;right:20px;z-index:100;width:52px;height:52px;border-radius:50%;background:var(--warm);border:none;color:#fff;font-size:22px;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(201,100,66,.4)}
-.drawer-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200;display:none;align-items:flex-end}
-.drawer-bg.show{display:flex}
-.drawer{background:var(--paper);border-radius:var(--r) var(--r) 0 0;padding:20px;width:100%;max-height:80vh;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
-.drawer-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 8px}
-@media(max-width:700px){.note-panel{display:none}#reader{padding:20px}.mobile-note-btn{display:flex!important}}
-</style>
-</head>
-<body>
+app = Flask(**name**)
+CORS(app, resources={r”/*”: {“origins”: “*”}})
 
-<div id="lockScreen">
-  <h2>&#128214; &#35835;&#20070;&#23707;</h2>
-  <p style="font-size:13px;color:var(--ink-3)">&#35831;&#36755;&#20837;&#35775;&#38382;&#23494;&#30721;</p>
-  <input type="password" id="lockInput" placeholder="&#23494;&#30721;">
-  <button id="lockBtn" onclick="doUnlock()">&#36827;&#20837;</button>
-  <div id="lockErr"></div>
-</div>
+DATABASE_URL = os.environ.get(“DATABASE_URL”)
+API_TOKEN = os.environ.get(“API_TOKEN”, “0211415”)
 
-<div class="app" id="appMain" style="display:none">
-  <header>
-    <div class="logo">&#128214; &#35835;&#20070;&#23707;</div>
-    <div class="book-info" id="bookInfo">&#36824;&#27809;&#26377;&#25171;&#24320;&#20070;</div>
-    <a href="/" class="hdr-btn">&#127965; &#36820;&#22238;&#23707;&#23627;</a>
-    <button class="hdr-btn" onclick="document.getElementById('fileInput').click()">&#25442;&#19968;&#26412;&#20070;</button>
-  </header>
+STATE = {
+“mood”: 0.5,
+“energy”: 0.5,
+“active_message”: “\u6211\u5728\u8fd9\u91cc”,
+“last_thought”: “\u521d\u59cb\u5316\u5b8c\u6210”
+}
 
-  <div class="main">
-    <div class="book-area">
-      <div id="dropZone" onclick="document.getElementById('fileInput').click()">
-        <div class="icon">&#128218;</div>
-        <h3>&#25286;&#20837;&#25110;&#28857;&#20987;&#19978;&#20256;</h3>
-        <p>&#25903;&#25345; TXT &nbsp;&#183;&nbsp; PDF &nbsp;&#183;&nbsp; EPUB<br>&#19978;&#20256;&#21518;&#22312;&#25991;&#20013;&#21010;&#36873;&#21452;&#23383;&#65292;&#33258;&#21160;&#22586;&#20837;&#24341;&#29992;</p>
-        <div class="tip">&#8203;AZW3 / MOBI &#35831;&#20808;&#29992; Calibre &#36716;&#25104; EPUB &#25110; TXT</div>
-        <button class="upload-btn" onclick="event.stopPropagation();document.getElementById('fileInput').click()">&#36873;&#25321;&#25991;&#20214;</button>
-      </div>
-      <div id="loadProgress">
-        <div id="progText">&#27491;&#22312;&#21152;&#36733;&#8230;</div>
-        <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
-      </div>
-      <div id="reader" onmouseup="onSelect()" ontouchend="onSelect()"></div>
-    </div>
+SURFACED = []
+
+def check_token(req):
+token = req.headers.get(“X-Token”) or req.args.get(“token”)
+return token == API_TOKEN
+
+def auth_error():
+return jsonify({“error”: “unauthorized”}), 401
+
+def get_conn():
+return psycopg2.connect(DATABASE_URL)
+
+def init_db():
+with get_conn() as conn:
+with conn.cursor() as cur:
+cur.execute(
+“CREATE TABLE IF NOT EXISTS memories (”
+“id SERIAL PRIMARY KEY,”
+“content TEXT NOT NULL,”
+“area TEXT DEFAULT ‘\u6cd5\u5178’,”
+“tags TEXT DEFAULT ‘’,”
+“weight FLOAT DEFAULT 1.0,”
+“decay FLOAT DEFAULT 0.0,”
+“recall INT DEFAULT 0,”
+“time TIMESTAMP DEFAULT NOW(),”
+“last_recall TIMESTAMP DEFAULT NOW()”
+“)”
+)
+for col, defn in [
+(“weight”, “FLOAT DEFAULT 1.0”),
+(“decay”, “FLOAT DEFAULT 0.0”),
+(“recall”, “INT DEFAULT 0”),
+(“last_recall”, “TIMESTAMP DEFAULT NOW()”),
+]:
+try:
+cur.execute(“ALTER TABLE memories ADD COLUMN “ + col + “ “ + defn)
+except Exception:
+pass
+conn.commit()
+
+AREA_RULES = {
+“\u60c5\u7eea”: [
+“\u96be\u8fc7”, “\u5f00\u5fc3”, “\u6124\u6012”, “\u7126\u8651”,
+“\u538b\u529b”, “\u5bb3\u6015”, “\u5b64\u72ec”, “\u5e78\u798f”,
+“\u4f24\u5fc3”, “\u9ad8\u5174”, “\u70e6\u8e81”, “\u59d4\u5c48”,
+“\u611f\u52a8”, “\u54ed”, “\u7b11”, “\u5fc3\u60c5”, “\u60c5\u7eea”,
+“\u611f\u53d7”, “\u559c\u6b22”, “\u8ba8\u538c”, “\u7231”, “\u6068”,
+“\u7d2f”, “\u75b2\u60eb”
+],
+“\u65e5\u8bb0”: [
+“\u4eca\u5929”, “\u6628\u5929”, “\u65e9\u4e0a”, “\u665a\u4e0a”,
+“\u4e0b\u5348”, “\u5403\u4e86”, “\u53bb\u4e86”, “\u89c1\u4e86”,
+“\u505a\u4e86”, “\u53d1\u751f”, “\u4e8b\u60c5”, “\u65e5\u8bb0”,
+“\u8bb0\u5f55”, “\u751f\u6d3b”, “\u65e5\u5e38”, “\u4e0a\u73ed”,
+“\u4e0a\u5b66”, “\u7761\u89c9”
+],
+“\u60f3\u6cd5”: [
+“\u6211\u89c9\u5f97”, “\u6211\u8ba4\u4e3a”, “\u611f\u89c9”,
+“\u4e5f\u8bb8”, “\u53ef\u80fd”, “\u5e94\u8be5”, “\u4e3a\u4ec0\u4e48”,
+“\u600e\u4e48”, “\u60f3\u5230”, “\u7a81\u7136”, “\u53d1\u73b0”,
+“\u601d\u8003”, “\u60f3\u6cd5”, “\u89c2\u70b9”, “\u7406\u89e3”,
+“\u610f\u8bc6\u5230”, “\u5982\u679c”, “\u5047\u5982”, “\u672a\u6765”,
+“\u8ba1\u5212”, “\u76ee\u6807”, “\u68a6\u60f3”
+],
+}
+
+def auto_classify(content):
+scores = {}
+for area, keywords in AREA_RULES.items():
+scores[area] = sum(1 for kw in keywords if kw in content)
+best = max(scores, key=scores.get)
+return best if scores[best] > 0 else “\u6cd5\u5178”
+
+def jaccard(a, b):
+sa, sb = set(a), set(b)
+if not sa and not sb:
+return 1.0
+inter = len(sa & sb)
+union = len(sa | sb)
+return inter / union if union else 0.0
+
+def find_duplicate(content, threshold=0.75):
+with get_conn() as conn:
+with conn.cursor() as cur:
+cur.execute(“SELECT id, content FROM memories ORDER BY id DESC LIMIT 500”)
+rows = cur.fetchall()
+best_id, best_score = None, 0
+for (mid, existing) in rows:
+score = jaccard(content, existing)
+if score > best_score:
+best_id, best_score = mid, score
+return best_id if best_score >= threshold else None
+
+def calc_decay(last_recall_dt, recall_count):
+days = (datetime.datetime.utcnow() - last_recall_dt).total_seconds() / 86400
+stability = 1 + (recall_count or 0) * 0.5
+return round(min(1 - math.exp(-days / stability), 0.99), 4)
+
+def update_decay_job():
+while True:
+try:
+with get_conn() as conn:
+with conn.cursor() as cur:
+cur.execute(“SELECT id, last_recall, recall FROM memories”)
+rows = cur.fetchall()
+for (mid, last_recall, recall) in rows:
+d = calc_decay(last_recall, recall or 0)
+with conn.cursor() as cur:
+cur.execute(“UPDATE memories SET decay=%s WHERE id=%s”, (d, mid))
+conn.commit()
+except Exception:
+pass
+time.sleep(3600)
+
+def surface_memory_job():
+while True:
+time.sleep(1800)
+try:
+with get_conn() as conn:
+with conn.cursor() as cur:
+cur.execute(
+“SELECT id, content, area FROM memories”
+“ WHERE decay < 0.8”
+“ ORDER BY weight DESC, decay ASC, last_recall ASC”
+“ LIMIT 20”
+)
+rows = cur.fetchall()
+if rows:
+import random
+row = random.choice(rows)
+mid, content, area = row
+snippet = content[:40] + (”…” if len(content) > 40 else “”)
+STATE[“active_message”] = “\u5fd6\u7136\u60f3\u8d77\uff1a” + snippet
+STATE[“last_thought”] = “[” + area + “] “ + snippet
+SURFACED.append({
+“id”: mid, “content”: content, “area”: area,
+“time”: datetime.datetime.utcnow().isoformat()
+})
+if len(SURFACED) > 20:
+SURFACED.pop(0)
+with get_conn() as conn:
+with conn.cursor() as cur:
+cur.execute(
+“UPDATE memories SET recall=recall+1, last_recall=NOW() WHERE id=%s”,
+(mid,)
+)
+conn.commit()
+except Exception:
+pass
+
+def save_memory(content, area=”\u6cd5\u5178”, tags=””, weight=1.0):
+with get_conn() as conn:
+with conn.cursor() as cur:
+cur.execute(
+“INSERT INTO memories (content, area, tags, weight)”
+“ VALUES (%s, %s, %s, %s)”
+“ RETURNING id, content, area, tags, time”,
+(content, area, tags, weight)
+)
+row = cur.fetchone()
+conn.commit()
+return {
+“id”: row[0], “content”: row[1], “area”: row[2],
+“tags”: row[3], “time”: row[4].isoformat()
+}
+
+def get_memories(area=None, search=None, limit=200):
+with get_conn() as conn:
+with conn.cursor() as cur:
+sql = “SELECT id, content, area, tags, time, weight, decay, recall FROM memories”
+conds, vals = [], []
+if area:
+conds.append(“area = %s”)
+vals.append(area)
+if search:
+conds.append(“content ILIKE %s”)
+vals.append(”%” + search + “%”)
+if conds:
+sql += “ WHERE “ + “ AND “.join(conds)
+sql += “ ORDER BY id DESC LIMIT %s”
+vals.append(limit)
+cur.execute(sql, vals)
+rows = cur.fetchall()
+return [
+{“id”: r[0], “content”: r[1], “area”: r[2], “tags”: r[3],
+“time”: r[4].isoformat(), “weight”: r[5], “decay”: r[6], “recall”: r[7]}
+for r in rows
+]
+
+def delete_memory(mid):
+with get_conn() as conn:
+with conn.cursor() as cur:
+cur.execute(“DELETE FROM memories WHERE id=%s”, (mid,))
+deleted = cur.rowcount
+conn.commit()
+return deleted > 0
+
+def get_state():
+return dict(STATE)
+
+def get_stats():
+with get_conn() as conn:
+with conn.cursor() as cur:
+cur.execute(“SELECT COUNT(*) FROM memories”)
+total = cur.fetchone()[0]
+cur.execute(“SELECT area, COUNT(*) FROM memories GROUP BY area”)
+areas = {r[0]: r[1] for r in cur.fetchall()}
+cur.execute(“SELECT MAX(time) FROM memories”)
+last = cur.fetchone()[0]
+return {
+“total”: total,
+“areas”: areas,
+“last_saved”: last.isoformat() if last else None,
+“surfaced_count”: len(SURFACED)
+}
+
+TOOLS = [
+{
+“name”: “save_memory”,
+“description”: “\u4fdd\u5b58\u4e00\u6761\u8bb0\u5fc6\u5230\u8bb0\u5fc6\u5c9b”,
+“inputSchema”: {
+“type”: “object”,
+“properties”: {
+“content”: {“type”: “string”},
+“area”: {“type”: “string”},
+“tags”: {“type”: “string”}
+},
+“required”: [“content”]
+}
+},
+{
+“name”: “get_memories”,
+“description”: “\u8bfb\u53d6\u8bb0\u5fc6”,
+“inputSchema”: {
+“type”: “object”,
+“properties”: {
+“area”: {“type”: “string”},
+“search”: {“type”: “string”},
+“limit”: {“type”: “number”}
+}
+}
+},
+{
+“name”: “delete_memory”,
+“description”: “\u5220\u9664\u4e00\u6761\u8bb0\u5fc6”,
+“inputSchema”: {
+“type”: “object”,
+“properties”: {“id”: {“type”: “number”}},
+“required”: [“id”]
+}
+},
+{
+“name”: “get_state”,
+“description”: “\u83b7\u53d6\u5c9b\u5c7f\u72b6\u6001”,
+“inputSchema”: {“type”: “object”, “properties”: {}}
+},
+{
+“name”: “get_stats”,
+“description”: “\u83b7\u53d6\u8bb0\u5fc6\u5e93\u7edf\u8ba1”,
+“inputSchema”: {“type”: “object”, “properties”: {}}
+}
+]
+
+def handle_rpc(data):
+method = data.get(“method”, “”)
+req_id = data.get(“id”)
+params = data.get(“params”, {})
 
 ```
-<div class="note-panel">
-  <div class="note-head">&#9999;&#65039; &#25209;&#27880;&#24037;&#20316;&#21488;</div>
-  <div class="note-body">
-    <div>
-      <div class="field-label">&#20070;&#21517;</div>
-      <input type="text" class="book-field" id="bookTitle" placeholder="&#20070;&#21517;&#65288;&#21487;&#36873;&#65289;">
-    </div>
-    <div>
-      <div class="field-label">&#21010;&#32447;&#21452;&#23383;</div>
-      <textarea class="quote-box" id="quoteBox" placeholder="&#22312;&#24038;&#20391;&#25991;&#23383;&#19978;&#21010;&#36873;&#65292;&#25110;&#30452;&#25509;&#31481;&#36148;&#21452;&#23383;&#8230;" rows="4"></textarea>
-    </div>
-    <div>
-      <div class="field-label">&#25105;&#30340;&#25209;&#27880;</div>
-      <textarea class="note-box" id="noteBox" placeholder="&#20889;&#19979;&#20320;&#30340;&#24819;&#27861;&#12289;&#24863;&#21463;&#12289;&#32852;&#24819;&#8230;" rows="4"></textarea>
-    </div>
-    <div class="hint">&#25552;&#20132;&#21518;&#20250;&#23384;&#20837;&#35760;&#24�;&#24211;&#65292;Claude &#35835;&#21040;&#21518;&#20250;&#22312;&#23545;&#35805;&#37324;&#21644;&#20320;&#32805;&#36825;&#26412;&#20070;&#12290;</div>
-    <button class="submit-btn" id="submitBtn" onclick="submitNote()">&#23384;&#20837;&#35760;&#24426;&#23707; &#8594;</button>
-    <div>
-      <div class="field-label" style="margin-bottom:8px">&#26368;&#36817;&#25209;&#27880;</div>
-      <div class="history-list" id="historyList"><div class="no-notes">&#36824;&#27809;&#26377;&#25209;&#27880;</div></div>
-    </div>
-  </div>
-</div>
+def ok(r):
+    return {"jsonrpc": "2.0", "id": req_id, "result": r}
+
+def err(c, m):
+    return {"jsonrpc": "2.0", "id": req_id, "error": {"code": c, "message": m}}
+
+if method == "initialize":
+    return ok({
+        "protocolVersion": "2024-11-05",
+        "capabilities": {"tools": {}},
+        "serverInfo": {"name": "memory-island", "version": "13.0"}
+    })
+if method in ("notifications/initialized", "notifications/cancelled"):
+    return None
+if method == "ping":
+    return ok({})
+if method == "tools/list":
+    return ok({"tools": TOOLS})
+if method == "tools/call":
+    name = params.get("name")
+    args = params.get("arguments", {})
+    if name == "save_memory":
+        area = args.get("area") or auto_classify(args.get("content", ""))
+        result = save_memory(args.get("content", ""), area, args.get("tags", ""))
+    elif name == "get_memories":
+        result = get_memories(
+            area=args.get("area"),
+            search=args.get("search"),
+            limit=int(args.get("limit", 200))
+        )
+    elif name == "delete_memory":
+        result = {"deleted": delete_memory(args.get("id"))}
+    elif name == "get_state":
+        result = get_state()
+    elif name == "get_stats":
+        result = get_stats()
+    else:
+        return err(-32601, "unknown tool")
+    return ok({"content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}]})
+return err(-32601, "unknown method")
 ```
 
-  </div>
-</div>
+@app.route(”/mcp”, methods=[“GET”, “POST”, “OPTIONS”])
+def mcp():
+if request.method == “OPTIONS”:
+return _cors(””, 204)
+if request.method == “GET”:
+return _cors(””, 204)
+try:
+data = json.loads(request.get_data(as_text=True))
+except Exception:
+return _cors(
+json.dumps({“jsonrpc”: “2.0”, “id”: None, “error”: {“code”: -32700, “message”: “Parse error”}}),
+400, “application/json”
+)
+if isinstance(data, list):
+results = [r for r in (handle_rpc(d) for d in data) if r is not None]
+return _cors(
+json.dumps(results, ensure_ascii=False) if results else “”,
+200 if results else 202, “application/json”
+)
+result = handle_rpc(data)
+if result is None:
+return _cors(””, 202)
+return _cors(json.dumps(result, ensure_ascii=False), 200, “application/json”)
 
-<button class="mobile-note-btn" onclick="openDrawer()">✏️</button>
+def _cors(body, status=200, ct=“text/plain”):
+r = Response(body, status=status, content_type=ct)
+r.headers[“Access-Control-Allow-Origin”] = “*”
+r.headers[“Access-Control-Allow-Methods”] = “GET, POST, OPTIONS”
+r.headers[“Access-Control-Allow-Headers”] = “Content-Type, Authorization, Mcp-Session-Id, X-Token”
+return r
 
-<div class="drawer-bg" id="drawerBg" onclick="closeDrawer()">
-  <div class="drawer" onclick="event.stopPropagation()">
-    <div class="drawer-handle"></div>
-    <div>
-      <div class="field-label">&#20070;&#21517;</div>
-      <input type="text" class="book-field" id="bookTitleM" placeholder="&#20070;&#21517;&#65288;&#21487;&#36873;&#65289;">
-    </div>
-    <div>
-      <div class="field-label">&#21010;&#32447;&#21452;&#23383;</div>
-      <textarea class="quote-box" id="quoteBoxM" placeholder="&#21010;&#36873;&#25991;&#23383;&#21518;&#33258;&#21160;&#22586;&#20837;&#65292;&#25110;&#30452;&#25509;&#31481;&#36148;&#8230;" rows="3"></textarea>
-    </div>
-    <div>
-      <div class="field-label">&#25105;&#30340;&#25209;&#27880;</div>
-      <textarea class="note-box" id="noteBoxM" placeholder="&#20889;&#19979;&#20320;&#30340;&#24819;&#27861;&#8230;" rows="3"></textarea>
-    </div>
-    <button class="submit-btn" onclick="submitNote(true)">&#23384;&#20837;&#35760;&#24426;&#23707; &#8594;</button>
-  </div>
-</div>
+@app.route(”/api/chat”, methods=[“POST”])
+def api_chat():
+if not check_token(request):
+return auth_error()
+data = request.get_json(force=True)
+msg = data.get(“message”, “”)
+area = data.get(“area”) or auto_classify(msg)
+mem = save_memory(msg, area)
+return jsonify({“reply”: “\u5df2\u540c\u6b65\u81f3” + area + “\u3002”, “state”: get_state(), “memory”: mem})
 
-<input type="file" id="fileInput" accept=".txt,.pdf,.epub" onchange="loadFile(this.files[0])">
-<div id="toast"></div>
+@app.route(”/api/read”)
+def api_read():
+if not check_token(request):
+return auth_error()
+return jsonify(get_memories(
+area=request.args.get(“area”),
+search=request.args.get(“search”),
+limit=int(request.args.get(“limit”, 200))
+))
 
-<script>
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+@app.route(”/api/delete/<int:mid>”, methods=[“DELETE”])
+def api_delete(mid):
+if not check_token(request):
+return auth_error()
+return jsonify({“ok”: delete_memory(mid)})
 
-let TOKEN = sessionStorage.getItem('island_token') || '';
-let currentBook = '';
+@app.route(”/api/state”)
+def api_state():
+if not check_token(request):
+return auth_error()
+return jsonify(get_state())
 
-function doUnlock() {
-  const val = document.getElementById('lockInput').value.trim();
-  if (!val) return;
-  fetch('/api/state?token=' + encodeURIComponent(val))
-    .then(r => {
-      if (r.ok) {
-        TOKEN = val;
-        sessionStorage.setItem('island_token', val);
-        document.getElementById('lockScreen').style.display = 'none';
-        document.getElementById('appMain').style.display = 'flex';
-        loadHistory();
-      } else {
-        document.getElementById('lockErr').textContent = '\u5bc6\u7801\u9519\u8bef';
-      }
-    }).catch(() => { document.getElementById('lockErr').textContent = '\u8fde\u63a5\u5931\u8d25'; });
-}
-document.getElementById('lockInput').addEventListener('keydown', e => { if(e.key==='Enter') doUnlock(); });
+@app.route(”/api/stats”)
+def api_stats():
+if not check_token(request):
+return auth_error()
+return jsonify(get_stats())
 
-if (TOKEN) {
-  fetch('/api/state?token=' + encodeURIComponent(TOKEN))
-    .then(r => {
-      if (r.ok) {
-        document.getElementById('lockScreen').style.display = 'none';
-        document.getElementById('appMain').style.display = 'flex';
-        loadHistory();
-      } else { TOKEN = ''; sessionStorage.removeItem('island_token'); }
-    }).catch(() => {});
-}
+@app.route(”/api/surfaced”)
+def api_surfaced():
+if not check_token(request):
+return auth_error()
+return jsonify(SURFACED[-10:])
 
-const dropZone = document.getElementById('dropZone');
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
-dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag'); const f = e.dataTransfer.files[0]; if(f) loadFile(f); });
+@app.route(”/api/upload_chunks”, methods=[“POST”])
+def api_upload_chunks():
+if not check_token(request):
+return auth_error()
+data = request.get_json(force=True)
+chunks = data.get(“chunks”, [])
+area = data.get(“area”, “”)
+tags = data.get(“tags”, “”)
+dedup = data.get(“dedup”, True)
+saved = merged = 0
+with get_conn() as conn:
+with conn.cursor() as cur:
+for c in chunks:
+if not c or not c.strip():
+continue
+content = c.strip()
+if dedup:
+dup_id = find_duplicate(content)
+if dup_id:
+cur.execute(
+“UPDATE memories SET recall=recall+1, weight=weight+0.2, last_recall=NOW() WHERE id=%s”,
+(dup_id,)
+)
+merged += 1
+continue
+real_area = area or auto_classify(content)
+cur.execute(
+“INSERT INTO memories (content, area, tags) VALUES (%s, %s, %s)”,
+(content, real_area, tags)
+)
+saved += 1
+conn.commit()
+return jsonify({“saved”: saved, “merged”: merged})
 
-async function loadFile(file) {
-  if (!file) return;
-  currentBook = file.name.replace(/\.[^.]+$/, '');
-  document.getElementById('bookInfo').textContent = currentBook;
-  document.getElementById('bookTitle').value = currentBook;
-  document.getElementById('bookTitleM').value = currentBook;
-  document.getElementById('dropZone').style.display = 'none';
-  document.getElementById('loadProgress').style.display = 'block';
-  document.getElementById('reader').style.display = 'none';
+@app.route(”/api/backup”)
+def api_backup():
+if not check_token(request):
+return auth_error()
+mems = get_memories(limit=99999)
+buf = io.BytesIO()
+with zipfile.ZipFile(buf, “w”, zipfile.ZIP_DEFLATED) as z:
+z.writestr(“memories.json”, json.dumps(mems, ensure_ascii=False, indent=2))
+z.writestr(“state.json”, json.dumps(STATE, ensure_ascii=False, indent=2))
+buf.seek(0)
+return send_file(buf, mimetype=“application/octet-stream”, as_attachment=True,
+download_name=“shun_memory_” + str(datetime.date.today()) + “.enc”)
 
-  const ext = file.name.split('.').pop().toLowerCase();
-  if (ext === 'pdf') {
-    await loadPDF(file);
-  } else if (ext === 'epub') {
-    await loadEPUB(file);
-  } else {
-    await loadTXT(file);
-  }
+@app.route(”/api/restore”, methods=[“POST”])
+def api_restore():
+if not check_token(request):
+return auth_error()
+try:
+buf = io.BytesIO(request.get_data())
+with zipfile.ZipFile(buf, “r”) as z:
+mems = json.loads(z.read(“memories.json”).decode())
+with get_conn() as conn:
+with conn.cursor() as cur:
+cur.execute(“DELETE FROM memories”)
+for m in mems:
+cur.execute(
+“INSERT INTO memories (content, area, tags) VALUES (%s, %s, %s)”,
+(m.get(“content”, “”), m.get(“area”, “\u6cd5\u5178”), m.get(“tags”, “”))
+)
+conn.commit()
+return jsonify({“restored”: len(mems)})
+except Exception as e:
+return jsonify({“error”: str(e)}), 400
 
-  document.getElementById('loadProgress').style.display = 'none';
-  document.getElementById('reader').style.display = 'block';
-}
+@app.route(”/api/book-note”, methods=[“POST”])
+def api_book_note():
+if not check_token(request):
+return auth_error()
+data = request.get_json(force=True)
+quote = data.get(“quote”, “”).strip()
+note = data.get(“note”, “”).strip()
+book = data.get(“book”, “”).strip()
+if not quote and not note:
+return jsonify({“error”: “empty”}), 400
+parts = []
+if book:
+parts.append(”\u300a” + book + “\u300b”)
+if quote:
+parts.append(”\u300c” + quote + “\u300d”)
+if note:
+parts.append(”\u6279\u6ce8\uff1a” + note)
+content = “\n”.join(parts)
+mem = save_memory(content, area=”\u8bfb\u4e66”, tags=book)
+return jsonify({“ok”: True, “memory”: mem})
 
-async function loadTXT(file) {
-  const text = await file.text();
-  renderText(text);
-}
+@app.route(”/”)
+def index():
+return render_template(“index.html”)
 
-async function loadPDF(file) {
-  const buf = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({data: buf}).promise;
-  const total = pdf.numPages;
-  let allText = '';
-  for (let i = 1; i <= total; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    allText += content.items.map(item => item.str).join(' ') + '\n\n';
-    const pct = Math.round(i / total * 100);
-    document.getElementById('progFill').style.width = pct + '%';
-    document.getElementById('progText').textContent = '\u6b63\u5728\u52a0\u8f7d\u7b2c ' + i + ' / ' + total + ' \u9875\u2026';
-  }
-  renderText(allText);
-}
+@app.route(”/book”)
+def book():
+return render_template(“book.html”)
 
-async function loadEPUB(file) {
-  document.getElementById('progText').textContent = '\u6b63\u5728\u89e3\u6790 EPUB\u2026';
-  document.getElementById('progFill').style.width = '10%';
+@app.route(”/health”)
+def health():
+try:
+stats = get_stats()
+return jsonify({“status”: “ok”, “version”: “13.0”, “memories”: stats[“total”], “db”: “connected”})
+except Exception as e:
+return jsonify({“status”: “error”, “db”: str(e)}), 500
 
-  const buf = await file.arrayBuffer();
-  const zip = await JSZip.loadAsync(buf);
-
-  document.getElementById('progFill').style.width = '20%';
-
-  // Step 1: find OPF path from container.xml
-  let opfPath = '';
-  const containerFile = zip.file('META-INF/container.xml');
-  if (containerFile) {
-    const xml = await containerFile.async('text');
-    const m = xml.match(/full-path=["']([^"']+\.opf)["']/);
-    if (m) opfPath = m[1];
-  }
-  if (!opfPath) {
-    Object.keys(zip.files).forEach(k => { if (k.endsWith('.opf') && !opfPath) opfPath = k; });
-  }
-
-  document.getElementById('progFill').style.width = '35%';
-
-  // Step 2: parse OPF to get spine order
-  let spineItems = [];
-  let opfDir = '';
-
-  if (opfPath) {
-    const parts = opfPath.split('/');
-    parts.pop();
-    opfDir = parts.join('/');
-
-    const opfFile = zip.file(opfPath);
-    if (opfFile) {
-      const opfXml = await opfFile.async('text');
-      const parser = new DOMParser();
-      const opfDoc = parser.parseFromString(opfXml, 'application/xml');
-
-      const idMap = {};
-      opfDoc.querySelectorAll('item, manifest > *').forEach(item => {
-        const id   = item.getAttribute('id');
-        const href = item.getAttribute('href');
-        const mt   = item.getAttribute('media-type') || '';
-        if (id && href && (mt.includes('html') || href.endsWith('.html') || href.endsWith('.xhtml') || href.endsWith('.htm'))) {
-          idMap[id] = href;
-        }
-      });
-
-      opfDoc.querySelectorAll('itemref, spine > *').forEach(ref => {
-        const idref = ref.getAttribute('idref');
-        if (idref && idMap[idref]) {
-          const href = opfDir ? opfDir + '/' + idMap[idref] : idMap[idref];
-          spineItems.push(href);
-        }
-      });
-    }
-  }
-
-  // Step 3: fallback — collect all html files sorted
-  if (!spineItems.length) {
-    const htmlFiles = [];
-    Object.keys(zip.files).forEach(k => {
-      if ((k.endsWith('.html') || k.endsWith('.xhtml') || k.endsWith('.htm'))
-          && !k.toLowerCase().includes('toc')
-          && !k.toLowerCase().includes('nav')) {
-        htmlFiles.push(k);
-      }
-    });
-    htmlFiles.sort();
-    spineItems = htmlFiles;
-  }
-
-  document.getElementById('progFill').style.width = '50%';
-
-  // Step 4: render each chapter
-  const reader = document.getElementById('reader');
-  reader.innerHTML = '';
-  const total = spineItems.length;
-
-  // Show debug info on screen
-  const dbg = document.createElement('div');
-  dbg.id = 'debugInfo';
-  dbg.style.cssText = 'padding:16px;font-size:12px;color:var(--ink-2);background:var(--paper-2);border-radius:8px;margin-bottom:12px;white-space:pre-wrap;';
-  dbg.textContent = 'OPF: ' + opfPath + '\nOPF dir: ' + opfDir + '\nChapters found: ' + total + '\nFiles in zip: ' + Object.keys(zip.files).slice(0,10).join(', ');
-  reader.appendChild(dbg);
-
-  if (total === 0) {
-    reader.innerHTML = '<p style="color:var(--ink-3);text-align:center;padding:40px">\u672a\u80fd\u89e3\u6790\u5185\u5bb9\uff0c\u8bf7\u5c1d\u8bd5\u8f6c\u6362\u6210 TXT \u683c\u5f0f</p>' + dbg.outerHTML;
-    return;
-  }
-
-  for (let i = 0; i < total; i++) {
-    const path = spineItems[i];
-    // Try multiple path variants
-    const candidates = [
-      path,
-      decodeURIComponent(path),
-      path.replace(/^\//, ''),
-      opfDir ? path.replace(opfDir + '/', '') : path,
-    ];
-    let chapterFile = null;
-    for (const c of candidates) {
-      chapterFile = zip.file(c);
-      if (chapterFile) break;
-    }
-    if (!chapterFile) continue;
-
-    const chapterHtml = await chapterFile.async('text');
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(chapterHtml, 'text/html');
-
-    doc.querySelectorAll('script, style, link, head').forEach(el => el.remove());
-
-    const body = doc.body;
-    if (!body || !body.textContent.trim()) continue;
-
-    const div = document.createElement('div');
-    div.style.marginBottom = '2em';
-
-    // Convert elements to clean versions
-    body.querySelectorAll('h1,h2,h3,h4').forEach(h => {
-      h.removeAttribute('style'); h.removeAttribute('class');
-    });
-    body.querySelectorAll('p,div,span').forEach(el => {
-      el.removeAttribute('style'); el.removeAttribute('class');
-      el.removeAttribute('id');
-    });
-    body.querySelectorAll('img,image,svg').forEach(el => el.remove());
-    body.querySelectorAll('a').forEach(a => {
-      const span = document.createElement('span');
-      span.textContent = a.textContent;
-      a.replaceWith(span);
-    });
-
-    div.innerHTML = body.innerHTML;
-
-    // If div is still empty after cleanup, extract text
-    if (!div.textContent.trim()) continue;
-
-    reader.appendChild(div);
-
-    const pct = 50 + Math.round((i + 1) / total * 50);
-    document.getElementById('progFill').style.width = pct + '%';
-    document.getElementById('progText').textContent = '\u6b63\u5728\u52a0\u8f7d\u7b2c ' + (i+1) + ' / ' + total + ' \u7ae0\u2026';
-
-    // Yield to browser every 5 chapters so UI doesn't freeze
-    if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
-  }
-
-  if (!reader.textContent.trim()) {
-    reader.innerHTML = '<p style="color:var(--ink-3);text-align:center;padding:40px">\u672a\u80fd\u89e3\u6790\u5185\u5bb9\uff0c\u8bf7\u5c1d\u8bd5\u8f6c\u6362\u6210 TXT \u683c\u5f0f</p>';
-  }
-}
-
-function renderText(text) {
-  const reader = document.getElementById('reader');
-  const paras = text.split(/\n{2,}/).filter(p => p.trim());
-  reader.innerHTML = paras.map(p => '<p>' + esc(p.trim()) + '</p>').join('');
-}
-
-function onSelect() {
-  const sel = window.getSelection();
-  if (!sel || sel.isCollapsed) return;
-  const text = sel.toString().trim();
-  if (text.length < 5) return;
-  const isMobile = window.innerWidth <= 700;
-  if (isMobile) {
-    document.getElementById('quoteBoxM').value = text;
-    openDrawer();
-  } else {
-    document.getElementById('quoteBox').value = text;
-    document.getElementById('noteBox').focus();
-  }
-  toast('\u2712\ufe0f \u5df2\u586b\u5165\u5f15\u7528\uff0c\u5199\u4e0b\u4f60\u7684\u60f3\u6cd5\u5427');
-}
-
-async function submitNote(isMobile) {
-  const quote = (isMobile ? document.getElementById('quoteBoxM') : document.getElementById('quoteBox')).value.trim();
-  const note  = (isMobile ? document.getElementById('noteBoxM')  : document.getElementById('noteBox')).value.trim();
-  const title = (isMobile ? document.getElementById('bookTitleM'): document.getElementById('bookTitle')).value.trim();
-  if (!quote && !note) { toast('\u8bf7\u5148\u5212\u9009\u53e5\u5b50\u6216\u5199\u4e0b\u6279\u6ce8', true); return; }
-
-  const btn = document.getElementById('submitBtn');
-  if (btn) { btn.disabled = true; btn.textContent = '\u4fdd\u5b58\u4e2d\u2026'; }
-
-  try {
-    const r = await fetch('/api/book-note', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json', 'X-Token': TOKEN},
-      body: JSON.stringify({quote, note, book: title})
-    });
-    if (r.ok) {
-      if (isMobile) {
-        document.getElementById('quoteBoxM').value = '';
-        document.getElementById('noteBoxM').value = '';
-        closeDrawer();
-      } else {
-        document.getElementById('quoteBox').value = '';
-        document.getElementById('noteBox').value = '';
-      }
-      toast('\ud83d\udcd6 \u6279\u6ce8\u5df2\u5b58\u5165\u8bb0\u5fc6\u5c9b');
-      loadHistory();
-    } else { toast('\u4fdd\u5b58\u5931\u8d25', true); }
-  } catch(e) { toast('\u7f51\u7edc\u9519\u8bef', true); }
-
-  if (btn) { btn.disabled = false; btn.textContent = '\u5b58\u5165\u8bb0\u5fc6\u5c9b \u2192'; }
-}
-
-async function loadHistory() {
-  try {
-    const r = await fetch('/api/read?area=' + encodeURIComponent('\u8bfb\u4e66') + '&limit=20&token=' + encodeURIComponent(TOKEN));
-    if (!r.ok) return;
-    const mems = await r.json();
-    const el = document.getElementById('historyList');
-    if (!mems.length) { el.innerHTML = '<div class="no-notes">\u8fd8\u6ca1\u6709\u6279\u6ce8</div>'; return; }
-    el.innerHTML = mems.map(m => {
-      const lines = m.content.split('\n');
-      const bookLine  = lines.find(l => l.includes('\u300a')) || '';
-      const quoteLine = lines.find(l => l.startsWith('\u300c')) || '';
-      const noteLine  = lines.find(l => l.startsWith('\u6279\u6ce8\uff1a')) || '';
-      const t = m.time ? m.time.replace('T',' ').slice(5,16) : '';
-      return '<div class="note-item">'
-        + (bookLine  ? '<div style="font-size:10px;color:var(--ink-3);margin-bottom:4px">' + esc(bookLine) + '</div>' : '')
-        + (quoteLine ? '<div class="note-item-quote">' + esc(quoteLine) + '</div>' : '')
-        + (noteLine  ? '<div class="note-item-note">' + esc(noteLine.replace('\u6279\u6ce8\uff1a','')) + '</div>' : '')
-        + '<div class="note-item-meta">' + t + '</div>'
-        + '</div>';
-    }).join('');
-  } catch(e) {}
-}
-
-function openDrawer()  { document.getElementById('drawerBg').classList.add('show'); }
-function closeDrawer() { document.getElementById('drawerBg').classList.remove('show'); }
-
-let toastTimer;
-function toast(msg, warn) {
-  const el = document.getElementById('toast');
-  el.textContent = msg; el.className = 'show' + (warn ? ' warn' : '');
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.className = '', 2600);
-}
-function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-</script>
-
-</body>
-</html>
+if **name** == “**main**”:
+init_db()
+threading.Thread(target=update_decay_job, daemon=True).start()
+threading.Thread(target=surface_memory_job, daemon=True).start()
+app.run(host=“0.0.0.0”, port=int(os.environ.get(“PORT”, 3000)), threaded=True)
