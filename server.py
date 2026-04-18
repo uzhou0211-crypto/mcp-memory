@@ -13,6 +13,7 @@ from flask_cors import CORS
 
 app = Flask(**name**)
 CORS(app, resources={r"/*": {"origins": "*"}})
+
 DATABASE_URL = os.environ.get(“DATABASE_URL”, “postgresql://postgres:iTdnKHeCrIAXletVRPmyCKSlFojZWoiu@postgres.railway.internal:5432/railway”)
 API_TOKEN    = os.environ.get(“API_TOKEN”, “0211415”)
 
