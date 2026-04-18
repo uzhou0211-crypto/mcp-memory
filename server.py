@@ -2,11 +2,11 @@ import os
 import json
 import datetime
 import io
-import zipfile
-import math
-import threading
-import time
-import psycopg2
+import zipfile导入zipfile导入zipfile
+import导入 math导入math导入math
+import threading导入threading
+import time导入time导入time
+import导入 psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2
 import psycopg2.extras
 from flask import Flask, request, jsonify, Response, send_file, render_template
 from flask_cors import CORS
@@ -18,10 +18,10 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:iTdnKHeCrIA
 API_TOKEN    = os.environ.get("API_TOKEN", "0211415")
 
 STATE = {
-    "mood": 0.5,
-    "energy": 0.5,
+    "mood": 0.5,“情绪”: 0.5,
+    "energy": 0.5,“能量”: 0.5,
     "active_message": "我在这里",
-    "last_thought": "初始化完成"
+    "last_thought": "初始化完成"“最后思考”: “初始化完成”
 }
 
 # =====================
