@@ -2,11 +2,11 @@ import os
 import json
 import datetime
 import io
-import zipfile导入zipfile导入zipfile
-import导入 math导入math导入math
-import threading导入threading
-import time导入time导入time
-import导入 psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2导入psycopg2
+import zipfile
+import math
+import threading
+import time
+import psycopg2
 import psycopg2.extras
 from flask import Flask, request, jsonify, Response, send_file, render_template
 from flask_cors import CORS
@@ -18,10 +18,10 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:iTdnKHeCrIA
 API_TOKEN    = os.environ.get("API_TOKEN", "0211415")
 
 STATE = {
-    "mood": 0.5,“情绪”: 0.5,
-    "energy": 0.5,“能量”: 0.5,
+    "mood": 0.5,
+    "energy": 0.5,
     "active_message": "我在这里",
-    "last_thought": "初始化完成"“最后思考”: “初始化完成”
+    "last_thought": "初始化完成"
 }
 
 # =====================
@@ -462,7 +462,7 @@ def api_backup():
 @app.route("/api/restore", methods=["POST"])
 def api_restore():
     if not check_token(request): return auth_error()
-    try:
+    try:尝试:
         buf = io.BytesIO(request.get_data())
         with zipfile.ZipFile(buf,"r") as z:
             mems = json.loads(z.read("memories.json").decode())
@@ -470,14 +470,14 @@ def api_restore():
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM memories")
                 for m in mems:
-                    cur.execute(
+                    cur.execute(当前。执行(
                         "INSERT INTO memories (content,area,tags) VALUES (%s,%s,%s)",
                         (m.get("content",""),m.get("area","法典"),m.get("tags",""))
                     )
             conn.commit()
         return jsonify({"restored": len(mems)})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
+    except Exception as e:除异常作为e：
+        return jsonify({"error": str(e)}), 400returnjsonify("error":stre),400
 
 # =====================
 # 前端 + 健康检查
@@ -488,10 +488,10 @@ def index():
 
 @app.route("/health")
 def health():
-    try:
+    try:尝试:
         stats = get_stats()
         return jsonify({"status":"ok","version":"12.0","memories":stats["total"],"db":"connected"})
-    except Exception as e:
+    except Exception as e:除异常作为e：
         return jsonify({"status":"error","db":str(e)}), 500
 
 # =====================
@@ -500,5 +500,5 @@ def health():
 if __name__ == "__main__":
     init_db()
     threading.Thread(target=update_decay_job,  daemon=True).start()
-    threading.Thread(target=surface_memory_job, daemon=True).start()
+    threading.Thread(target=surface_memory_job, daemon=True).start()线程化。线程(target=表面内存任务, 守护进程=True真).启动()目标=表面内存任务，守护进程=真).启动()目标=表面内存任务，守护进程=True真).启动()目标=表面内存任务，守护进程=真).启动()
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT",3000)), threaded=True)
