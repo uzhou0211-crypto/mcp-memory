@@ -6,165 +6,135 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>小顺的读书岛</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;600&family=Noto+Sans+SC:wght@300;400;500&display=swap');
 :root{--ink:#1c1a18;--ink-2:#4a4640;--ink-3:#9a9490;--paper:#faf8f4;--paper-2:#f3f0ea;--paper-3:#ece8e0;--warm:#c96442;--warm-soft:#f0ddd5;--teal:#4a8a80;--teal-soft:#d5eae8;--border:rgba(28,26,24,.1);--r:14px;--r-sm:9px}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden;font-family:'Noto Sans SC',sans-serif;background:var(--paper);color:var(--ink);font-size:14px;line-height:1.7}
-
-/* 锁屏 */
-#lockScreen{position:fixed;inset:0;background:var(–paper);z-index:999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px}
-#lockScreen h2{font-family:‘Noto Serif SC’,serif;font-size:20px}
-#lockInput{padding:10px 16px;border:1px solid var(–border);border-radius:var(–r-sm);background:var(–paper-2);color:var(–ink);font-family:inherit;font-size:14px;outline:none;width:220px;text-align:center}
-#lockInput:focus{border-color:var(–warm)}
-#lockBtn{padding:9px 28px;background:var(–warm);border:none;border-radius:var(–r-sm);color:#fff;font-family:inherit;font-size:14px;cursor:pointer}
-#lockErr{font-size:12px;color:var(–warm);min-height:18px}
-
-/* 布局 */
+#lockScreen{position:fixed;inset:0;background:var(--paper);z-index:999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+#lockScreen h2{font-family:'Noto Serif SC',serif;font-size:20px}
+#lockInput{padding:10px 16px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--paper-2);color:var(--ink);font-family:inherit;font-size:14px;outline:none;width:220px;text-align:center}
+#lockInput:focus{border-color:var(--warm)}
+#lockBtn{padding:9px 28px;background:var(--warm);border:none;border-radius:var(--r-sm);color:#fff;font-family:inherit;font-size:14px;cursor:pointer}
+#lockErr{font-size:12px;color:var(--warm);min-height:18px}
 .app{display:flex;flex-direction:column;height:100%}
-header{padding:12px 20px;display:flex;align-items:center;justify-content:space-between;background:rgba(250,248,244,.95);backdrop-filter:blur(12px);border-bottom:1px solid var(–border);flex-shrink:0;gap:10px}
-.logo{font-family:‘Noto Serif SC’,serif;font-size:16px;font-weight:600;white-space:nowrap}
-.book-info{font-size:12px;color:var(–ink-3);flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hdr-btn{padding:5px 12px;border:1px solid var(–border);border-radius:var(–r-sm);background:transparent;color:var(–ink-2);font-family:inherit;font-size:12px;cursor:pointer;white-space:nowrap;transition:all .15s}
-.hdr-btn:hover{background:var(–warm-soft);border-color:var(–warm);color:var(–warm)}
-.hdr-btn.primary{background:var(–warm);border-color:var(–warm);color:#fff}
-.hdr-btn.primary:hover{background:#b85538}
-
+header{padding:12px 20px;display:flex;align-items:center;justify-content:space-between;background:rgba(250,248,244,.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);flex-shrink:0;gap:10px}
+.logo{font-family:'Noto Serif SC',serif;font-size:16px;font-weight:600;white-space:nowrap}
+.book-info{font-size:12px;color:var(--ink-3);flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hdr-btn{padding:5px 12px;border:1px solid var(--border);border-radius:var(--r-sm);background:transparent;color:var(--ink-2);font-family:inherit;font-size:12px;cursor:pointer;white-space:nowrap;transition:all .15s}
+.hdr-btn:hover{background:var(--warm-soft);border-color:var(--warm);color:var(--warm)}
 .main{flex:1;display:flex;overflow:hidden;min-height:0}
-
-/* 书本区 */
-.book-area{flex:1;display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(–border)}
-
-/* 上传区 */
+.book-area{flex:1;display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--border)}
 #dropZone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px;cursor:pointer;transition:all .2s}
-#dropZone:hover,#dropZone.drag{background:var(–warm-soft)}
+#dropZone:hover,#dropZone.drag{background:var(--warm-soft)}
 #dropZone .icon{font-size:48px}
-#dropZone h3{font-family:‘Noto Serif SC’,serif;font-size:18px;color:var(–ink-2)}
-#dropZone p{font-size:13px;color:var(–ink-3);text-align:center}
+#dropZone h3{font-family:'Noto Serif SC',serif;font-size:18px;color:var(--ink-2)}
+#dropZone p{font-size:13px;color:var(--ink-3);text-align:center;line-height:1.8}
+#dropZone .tip{font-size:11px;color:var(--ink-3);background:var(--paper-2);padding:8px 14px;border-radius:var(--r-sm);border:1px solid var(--border)}
 #fileInput{display:none}
-.upload-btn{padding:10px 24px;background:var(–warm);border:none;border-radius:var(–r-sm);color:#fff;font-family:inherit;font-size:14px;cursor:pointer}
+.upload-btn{padding:10px 24px;background:var(--warm);border:none;border-radius:var(--r-sm);color:#fff;font-family:inherit;font-size:14px;cursor:pointer}
 .upload-btn:hover{background:#b85538}
-
-/* 阅读器 */
-#reader{flex:1;overflow-y:auto;padding:32px 48px;display:none;line-height:2;font-family:‘Noto Serif SC’,serif;font-size:15px;color:var(–ink)}
+#reader{flex:1;overflow-y:auto;padding:32px 48px;display:none;line-height:2;font-family:'Noto Serif SC',serif;font-size:15px;color:var(--ink)}
 #reader::-webkit-scrollbar{width:4px}
-#reader::-webkit-scrollbar-thumb{background:var(–border);border-radius:2px}
+#reader::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 #reader p{margin-bottom:1em}
-#reader .page-break{border:none;border-top:1px dashed var(–border);margin:24px 0;text-align:center;color:var(–ink-3);font-size:11px;font-family:‘Noto Sans SC’,sans-serif}
+#reader h1,#reader h2,#reader h3{font-family:'Noto Serif SC',serif;margin:1.5em 0 .5em;color:var(--ink)}
+#reader h1{font-size:1.4em}
+#reader h2{font-size:1.2em}
+#reader h3{font-size:1.1em}
 ::selection{background:rgba(201,100,66,.25)}
-
-/* 进度条 */
-#loadProgress{display:none;padding:20px;text-align:center;color:var(–ink-3);font-size:13px}
-.prog-bar{height:4px;background:var(–paper-3);border-radius:2px;overflow:hidden;margin:8px auto;max-width:200px}
-.prog-fill{height:100%;background:var(–teal);border-radius:2px;transition:width .3s}
-
-/* 批注面板 */
-.note-panel{width:320px;display:flex;flex-direction:column;overflow:hidden;background:var(–paper-2)}
-.note-head{padding:12px 16px;border-bottom:1px solid var(–border);font-family:‘Noto Serif SC’,serif;font-size:12px;color:var(–ink-3);letter-spacing:.08em;text-transform:uppercase;flex-shrink:0}
+#loadProgress{display:none;padding:40px;text-align:center;color:var(--ink-3);font-size:13px}
+.prog-bar{height:4px;background:var(--paper-3);border-radius:2px;overflow:hidden;margin:12px auto;max-width:240px}
+.prog-fill{height:100%;background:var(--teal);border-radius:2px;transition:width .3s}
+.note-panel{width:320px;display:flex;flex-direction:column;overflow:hidden;background:var(--paper-2)}
+.note-head{padding:12px 16px;border-bottom:1px solid var(--border);font-family:'Noto Serif SC',serif;font-size:12px;color:var(--ink-3);letter-spacing:.08em;flex-shrink:0}
 .note-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
 .note-body::-webkit-scrollbar{width:3px}
-.note-body::-webkit-scrollbar-thumb{background:var(–border)}
-
-.field-label{font-size:11px;color:var(–ink-3);margin-bottom:5px;letter-spacing:.05em}
-.quote-box{width:100%;padding:10px 12px;border:1px solid rgba(201,100,66,.3);border-radius:var(–r-sm);background:var(–warm-soft);color:var(–ink);font-family:‘Noto Serif SC’,serif;font-size:13px;resize:none;outline:none;min-height:80px;max-height:160px;line-height:1.7;font-style:italic}
-.quote-box:focus{border-color:var(–warm)}
-.note-box{width:100%;padding:10px 12px;border:1px solid var(–border);border-radius:var(–r-sm);background:var(–paper);color:var(–ink);font-family:‘Noto Sans SC’,sans-serif;font-size:13px;resize:none;outline:none;min-height:80px;max-height:160px;line-height:1.7}
-.note-box:focus{border-color:var(–teal)}
-.book-field{width:100%;padding:8px 12px;border:1px solid var(–border);border-radius:var(–r-sm);background:var(–paper);color:var(–ink);font-family:inherit;font-size:13px;outline:none}
-.book-field:focus{border-color:var(–warm)}
-
-.hint{font-size:11px;color:var(–ink-3);font-style:italic;padding:8px 10px;background:var(–paper);border-radius:var(–r-sm);border-left:2px solid var(–teal)}
-
-.submit-btn{width:100%;padding:11px;background:var(–warm);border:none;border-radius:var(–r-sm);color:#fff;font-family:‘Noto Serif SC’,serif;font-size:14px;cursor:pointer;transition:all .15s;letter-spacing:.04em}
+.note-body::-webkit-scrollbar-thumb{background:var(--border)}
+.field-label{font-size:11px;color:var(--ink-3);margin-bottom:5px;letter-spacing:.05em}
+.quote-box{width:100%;padding:10px 12px;border:1px solid rgba(201,100,66,.3);border-radius:var(--r-sm);background:var(--warm-soft);color:var(--ink);font-family:'Noto Serif SC',serif;font-size:13px;resize:none;outline:none;min-height:80px;max-height:160px;line-height:1.7;font-style:italic}
+.quote-box:focus{border-color:var(--warm)}
+.note-box{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--paper);color:var(--ink);font-family:'Noto Sans SC',sans-serif;font-size:13px;resize:none;outline:none;min-height:80px;max-height:160px;line-height:1.7}
+.note-box:focus{border-color:var(--teal)}
+.book-field{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--paper);color:var(--ink);font-family:inherit;font-size:13px;outline:none}
+.book-field:focus{border-color:var(--warm)}
+.hint{font-size:11px;color:var(--ink-3);font-style:italic;padding:8px 10px;background:var(--paper);border-radius:var(--r-sm);border-left:2px solid var(--teal)}
+.submit-btn{width:100%;padding:11px;background:var(--warm);border:none;border-radius:var(--r-sm);color:#fff;font-family:'Noto Serif SC',serif;font-size:14px;cursor:pointer;transition:all .15s;letter-spacing:.04em}
 .submit-btn:hover{background:#b85538}
-.submit-btn:active{transform:scale(.98)}
-.submit-btn:disabled{background:var(–paper-3);color:var(–ink-3);cursor:not-allowed}
-
-/* 历史批注 */
+.submit-btn:disabled{background:var(--paper-3);color:var(--ink-3);cursor:not-allowed}
 .history-list{display:flex;flex-direction:column;gap:8px}
-.note-item{padding:10px 12px;border-radius:var(–r-sm);border:1px solid var(–border);background:var(–paper);font-size:12px}
-.note-item-quote{font-family:‘Noto Serif SC’,serif;font-style:italic;color:var(–ink-2);margin-bottom:5px;border-left:2px solid var(–warm);padding-left:8px}
-.note-item-note{color:var(–ink);line-height:1.6}
-.note-item-meta{font-size:10px;color:var(–ink-3);margin-top:5px}
-.no-notes{text-align:center;padding:20px;color:var(–ink-3);font-size:12px;font-style:italic}
-
-#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(16px);background:var(–ink);color:#faf8f4;padding:9px 18px;border-radius:20px;font-size:13px;opacity:0;transition:all .25s;z-index:9999;pointer-events:none;white-space:nowrap}
+.note-item{padding:10px 12px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--paper);font-size:12px}
+.note-item-quote{font-family:'Noto Serif SC',serif;font-style:italic;color:var(--ink-2);margin-bottom:5px;border-left:2px solid var(--warm);padding-left:8px}
+.note-item-note{color:var(--ink);line-height:1.6}
+.note-item-meta{font-size:10px;color:var(--ink-3);margin-top:5px}
+.no-notes{text-align:center;padding:20px;color:var(--ink-3);font-size:12px;font-style:italic}
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--ink);color:#faf8f4;padding:9px 18px;border-radius:20px;font-size:13px;opacity:0;transition:all .25s;z-index:9999;pointer-events:none;white-space:nowrap}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-#toast.warn{background:var(–warm)}
-
-@media(max-width:700px){
-.note-panel{display:none}
-#reader{padding:20px}
-.mobile-note-btn{display:flex!important}
-}
-.mobile-note-btn{display:none;position:fixed;bottom:20px;right:20px;z-index:100;width:52px;height:52px;border-radius:50%;background:var(–warm);border:none;color:#fff;font-size:22px;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(201,100,66,.4)}
-
-/* 移动端批注抽屉 */
+#toast.warn{background:var(--warm)}
+.mobile-note-btn{display:none;position:fixed;bottom:20px;right:20px;z-index:100;width:52px;height:52px;border-radius:50%;background:var(--warm);border:none;color:#fff;font-size:22px;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(201,100,66,.4)}
 .drawer-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200;display:none;align-items:flex-end}
 .drawer-bg.show{display:flex}
-.drawer{background:var(–paper);border-radius:var(–r) var(–r) 0 0;padding:20px;width:100%;max-height:80vh;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
-.drawer-handle{width:40px;height:4px;background:var(–border);border-radius:2px;margin:0 auto 8px}
+.drawer{background:var(--paper);border-radius:var(--r) var(--r) 0 0;padding:20px;width:100%;max-height:80vh;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
+.drawer-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 8px}
+@media(max-width:700px){.note-panel{display:none}#reader{padding:20px}.mobile-note-btn{display:flex!important}}
 </style>
-
 </head>
 <body>
 
 <div id="lockScreen">
-  <h2>📖 读书岛</h2>
-  <p style="font-size:13px;color:var(--ink-3)">请输入访问密码</p>
-  <input type="password" id="lockInput" placeholder="密码">
-  <button id="lockBtn" onclick="doUnlock()">进入</button>
+  <h2>&#128214; &#35835;&#20070;&#23707;</h2>
+  <p style="font-size:13px;color:var(--ink-3)">&#35831;&#36755;&#20837;&#35775;&#38382;&#23494;&#30721;</p>
+  <input type="password" id="lockInput" placeholder="&#23494;&#30721;">
+  <button id="lockBtn" onclick="doUnlock()">&#36827;&#20837;</button>
   <div id="lockErr"></div>
 </div>
 
 <div class="app" id="appMain" style="display:none">
   <header>
-    <div class="logo">📖 读书岛</div>
-    <div class="book-info" id="bookInfo">还没有打开书</div>
-    <a href="/" class="hdr-btn">🏝 返回岛屿</a>
-    <button class="hdr-btn" onclick="document.getElementById('fileInput').click()">换一本书</button>
+    <div class="logo">&#128214; &#35835;&#20070;&#23707;</div>
+    <div class="book-info" id="bookInfo">&#36824;&#27809;&#26377;&#25171;&#24320;&#20070;</div>
+    <a href="/" class="hdr-btn">&#127965; &#36820;&#22238;&#23707;&#23627;</a>
+    <button class="hdr-btn" onclick="document.getElementById('fileInput').click()">&#25442;&#19968;&#26412;&#20070;</button>
   </header>
 
   <div class="main">
-    <!-- 书本区 -->
     <div class="book-area">
-      <!-- 上传区 -->
       <div id="dropZone" onclick="document.getElementById('fileInput').click()">
-        <div class="icon">📚</div>
-        <h3>拖入或点击上传</h3>
-        <p>支持 TXT、PDF 文件<br>上传后直接在文中划选句子，自动填入引用</p>
-        <button class="upload-btn" onclick="event.stopPropagation();document.getElementById('fileInput').click()">选择文件</button>
+        <div class="icon">&#128218;</div>
+        <h3>&#25286;&#20837;&#25110;&#28857;&#20987;&#19978;&#20256;</h3>
+        <p>&#25903;&#25345; TXT &nbsp;&#183;&nbsp; PDF &nbsp;&#183;&nbsp; EPUB<br>&#19978;&#20256;&#21518;&#22312;&#25991;&#20013;&#21010;&#36873;&#21452;&#23383;&#65292;&#33258;&#21160;&#22586;&#20837;&#24341;&#29992;</p>
+        <div class="tip">&#8203;AZW3 / MOBI &#35831;&#20808;&#29992; Calibre &#36716;&#25104; EPUB &#25110; TXT</div>
+        <button class="upload-btn" onclick="event.stopPropagation();document.getElementById('fileInput').click()">&#36873;&#25321;&#25991;&#20214;</button>
       </div>
       <div id="loadProgress">
-        <div>正在加载…</div>
+        <div id="progText">&#27491;&#22312;&#21152;&#36733;&#8230;</div>
         <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
       </div>
-      <!-- 阅读器 -->
       <div id="reader" onmouseup="onSelect()" ontouchend="onSelect()"></div>
     </div>
 
 ```
-<!-- 批注面板（桌面） -->
 <div class="note-panel">
-  <div class="note-head">✏️ 批注工作台</div>
+  <div class="note-head">&#9999;&#65039; &#25209;&#27880;&#24037;&#20316;&#21488;</div>
   <div class="note-body">
     <div>
-      <div class="field-label">书名</div>
-      <input type="text" class="book-field" id="bookTitle" placeholder="书名（可选）">
+      <div class="field-label">&#20070;&#21517;</div>
+      <input type="text" class="book-field" id="bookTitle" placeholder="&#20070;&#21517;&#65288;&#21487;&#36873;&#65289;">
     </div>
     <div>
-      <div class="field-label">划线句子</div>
-      <textarea class="quote-box" id="quoteBox" placeholder="在左侧文字上划选，或直接粘贴句子…" rows="4"></textarea>
+      <div class="field-label">&#21010;&#32447;&#21452;&#23383;</div>
+      <textarea class="quote-box" id="quoteBox" placeholder="&#22312;&#24038;&#20391;&#25991;&#23383;&#19978;&#21010;&#36873;&#65292;&#25110;&#30452;&#25509;&#31481;&#36148;&#21452;&#23383;&#8230;" rows="4"></textarea>
     </div>
     <div>
-      <div class="field-label">我的批注</div>
-      <textarea class="note-box" id="noteBox" placeholder="写下你的想法、感受、联想…" rows="4"></textarea>
+      <div class="field-label">&#25105;&#30340;&#25209;&#27880;</div>
+      <textarea class="note-box" id="noteBox" placeholder="&#20889;&#19979;&#20320;&#30340;&#24819;&#27861;&#12289;&#24863;&#21463;&#12289;&#32852;&#24819;&#8230;" rows="4"></textarea>
     </div>
-    <div class="hint">提交后会存入记忆库，Claude 读到后会在对话里和你聊这本书。</div>
-    <button class="submit-btn" id="submitBtn" onclick="submitNote()">存入记忆岛 →</button>
+    <div class="hint">&#25552;&#20132;&#21518;&#20250;&#23384;&#20837;&#35760;&#24�;&#24211;&#65292;Claude &#35835;&#21040;&#21518;&#20250;&#22312;&#23545;&#35805;&#37324;&#21644;&#20320;&#32805;&#36825;&#26412;&#20070;&#12290;</div>
+    <button class="submit-btn" id="submitBtn" onclick="submitNote()">&#23384;&#20837;&#35760;&#24426;&#23707; &#8594;</button>
     <div>
-      <div class="field-label" style="margin-bottom:8px">最近批注</div>
-      <div class="history-list" id="historyList"><div class="no-notes">还没有批注</div></div>
+      <div class="field-label" style="margin-bottom:8px">&#26368;&#36817;&#25209;&#27880;</div>
+      <div class="history-list" id="historyList"><div class="no-notes">&#36824;&#27809;&#26377;&#25209;&#27880;</div></div>
     </div>
   </div>
 </div>
@@ -173,32 +143,28 @@ header{padding:12px 20px;display:flex;align-items:center;justify-content:space-b
   </div>
 </div>
 
-<!-- 移动端悬浮按钮 -->
-
 <button class="mobile-note-btn" onclick="openDrawer()">✏️</button>
-
-<!-- 移动端抽屉 -->
 
 <div class="drawer-bg" id="drawerBg" onclick="closeDrawer()">
   <div class="drawer" onclick="event.stopPropagation()">
     <div class="drawer-handle"></div>
     <div>
-      <div class="field-label">书名</div>
-      <input type="text" class="book-field" id="bookTitleM" placeholder="书名（可选）">
+      <div class="field-label">&#20070;&#21517;</div>
+      <input type="text" class="book-field" id="bookTitleM" placeholder="&#20070;&#21517;&#65288;&#21487;&#36873;&#65289;">
     </div>
     <div>
-      <div class="field-label">划线句子</div>
-      <textarea class="quote-box" id="quoteBoxM" placeholder="划选文字后自动填入，或直接粘贴…" rows="3"></textarea>
+      <div class="field-label">&#21010;&#32447;&#21452;&#23383;</div>
+      <textarea class="quote-box" id="quoteBoxM" placeholder="&#21010;&#36873;&#25991;&#23383;&#21518;&#33258;&#21160;&#22586;&#20837;&#65292;&#25110;&#30452;&#25509;&#31481;&#36148;&#8230;" rows="3"></textarea>
     </div>
     <div>
-      <div class="field-label">我的批注</div>
-      <textarea class="note-box" id="noteBoxM" placeholder="写下你的想法…" rows="3"></textarea>
+      <div class="field-label">&#25105;&#30340;&#25209;&#27880;</div>
+      <textarea class="note-box" id="noteBoxM" placeholder="&#20889;&#19979;&#20320;&#30340;&#24819;&#27861;&#8230;" rows="3"></textarea>
     </div>
-    <button class="submit-btn" onclick="submitNote(true)">存入记忆岛 →</button>
+    <button class="submit-btn" onclick="submitNote(true)">&#23384;&#20837;&#35760;&#24426;&#23707; &#8594;</button>
   </div>
 </div>
 
-<input type="file" id="fileInput" accept=".txt,.pdf" onchange="loadFile(this.files[0])">
+<input type="file" id="fileInput" accept=".txt,.pdf,.epub" onchange="loadFile(this.files[0])">
 <div id="toast"></div>
 
 <script>
@@ -207,7 +173,6 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 let TOKEN = sessionStorage.getItem('island_token') || '';
 let currentBook = '';
 
-// ── 锁屏 ──
 function doUnlock() {
   const val = document.getElementById('lockInput').value.trim();
   if (!val) return;
@@ -220,9 +185,9 @@ function doUnlock() {
         document.getElementById('appMain').style.display = 'flex';
         loadHistory();
       } else {
-        document.getElementById('lockErr').textContent = '密码错误';
+        document.getElementById('lockErr').textContent = '\u5bc6\u7801\u9519\u8bef';
       }
-    }).catch(() => { document.getElementById('lockErr').textContent = '连接失败'; });
+    }).catch(() => { document.getElementById('lockErr').textContent = '\u8fde\u63a5\u5931\u8d25'; });
 }
 document.getElementById('lockInput').addEventListener('keydown', e => { if(e.key==='Enter') doUnlock(); });
 
@@ -237,7 +202,6 @@ if (TOKEN) {
     }).catch(() => {});
 }
 
-// ── 文件加载 ──
 const dropZone = document.getElementById('dropZone');
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
@@ -249,13 +213,15 @@ async function loadFile(file) {
   document.getElementById('bookInfo').textContent = currentBook;
   document.getElementById('bookTitle').value = currentBook;
   document.getElementById('bookTitleM').value = currentBook;
-
   document.getElementById('dropZone').style.display = 'none';
   document.getElementById('loadProgress').style.display = 'block';
   document.getElementById('reader').style.display = 'none';
 
-  if (file.name.endsWith('.pdf')) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'pdf') {
     await loadPDF(file);
+  } else if (ext === 'epub') {
+    await loadEPUB(file);
   } else {
     await loadTXT(file);
   }
@@ -274,35 +240,118 @@ async function loadPDF(file) {
   const pdf = await pdfjsLib.getDocument({data: buf}).promise;
   const total = pdf.numPages;
   let allText = '';
-
   for (let i = 1; i <= total; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
-    const pageText = content.items.map(item => item.str).join(' ');
-    allText += pageText + '\n\n';
+    allText += content.items.map(item => item.str).join(' ') + '\n\n';
     const pct = Math.round(i / total * 100);
     document.getElementById('progFill').style.width = pct + '%';
-    document.querySelector('#loadProgress div').textContent = `正在加载第 ${i} / ${total} 页…`;
+    document.getElementById('progText').textContent = '\u6b63\u5728\u52a0\u8f7d\u7b2c ' + i + ' / ' + total + ' \u9875\u2026';
   }
   renderText(allText);
+}
+
+async function loadEPUB(file) {
+  document.getElementById('progText').textContent = '\u6b63\u5728\u89e3\u6790 EPUB\u2026';
+  document.getElementById('progFill').style.width = '10%';
+
+  const buf = await file.arrayBuffer();
+  const zip = await JSZip.loadAsync(buf);
+
+  document.getElementById('progFill').style.width = '30%';
+
+  // Find OPF file
+  let opfPath = '';
+  const container = zip.file('META-INF/container.xml');
+  if (container) {
+    const containerXml = await container.async('text');
+    const match = containerXml.match(/full-path="([^"]+\.opf)"/);
+    if (match) opfPath = match[1];
+  }
+  if (!opfPath) {
+    // fallback: find any .opf
+    Object.keys(zip.files).forEach(k => { if (k.endsWith('.opf')) opfPath = k; });
+  }
+
+  let spineItems = [];
+  const opfDir = opfPath ? opfPath.split('/').slice(0, -1).join('/') : '';
+
+  if (opfPath && zip.file(opfPath)) {
+    const opfXml = await zip.file(opfPath).async('text');
+    const parser = new DOMParser();
+    const opfDoc = parser.parseFromString(opfXml, 'application/xml');
+
+    // Build id->href map
+    const idMap = {};
+    opfDoc.querySelectorAll('manifest item').forEach(item => {
+      idMap[item.getAttribute('id')] = item.getAttribute('href');
+    });
+
+    // Get spine order
+    opfDoc.querySelectorAll('spine itemref').forEach(ref => {
+      const idref = ref.getAttribute('idref');
+      if (idMap[idref]) {
+        const href = opfDir ? opfDir + '/' + idMap[idref] : idMap[idref];
+        spineItems.push(href);
+      }
+    });
+  }
+
+  // Fallback: find all html/xhtml files
+  if (!spineItems.length) {
+    Object.keys(zip.files).forEach(k => {
+      if ((k.endsWith('.html') || k.endsWith('.xhtml') || k.endsWith('.htm')) && !k.includes('toc')) {
+        spineItems.push(k);
+      }
+    });
+    spineItems.sort();
+  }
+
+  document.getElementById('progFill').style.width = '50%';
+
+  const reader = document.getElementById('reader');
+  reader.innerHTML = '';
+  const total = spineItems.length;
+
+  for (let i = 0; i < total; i++) {
+    const path = spineItems[i];
+    const f = zip.file(path) || zip.file(decodeURIComponent(path));
+    if (!f) continue;
+    const html = await f.async('text');
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    // Remove scripts and styles
+    doc.querySelectorAll('script, style, link').forEach(el => el.remove());
+
+    const body = doc.body;
+    if (body) {
+      // Keep structure but sanitize
+      const div = document.createElement('div');
+      div.innerHTML = body.innerHTML;
+      // Clean up inline styles that might interfere
+      div.querySelectorAll('[style]').forEach(el => el.removeAttribute('style'));
+      div.querySelectorAll('[class]').forEach(el => el.removeAttribute('class'));
+      reader.appendChild(div);
+    }
+
+    const pct = 50 + Math.round((i + 1) / total * 50);
+    document.getElementById('progFill').style.width = pct + '%';
+    document.getElementById('progText').textContent = '\u6b63\u5728\u52a0\u8f7d\u7b2c ' + (i+1) + ' / ' + total + ' \u7ae0\u2026';
+  }
 }
 
 function renderText(text) {
   const reader = document.getElementById('reader');
   const paras = text.split(/\n{2,}/).filter(p => p.trim());
-  reader.innerHTML = paras.map(p =>
-    `<p>${esc(p.trim())}</p>`
-  ).join('');
+  reader.innerHTML = paras.map(p => '<p>' + esc(p.trim()) + '</p>').join('');
 }
 
-// ── 划选自动填入 ──
 function onSelect() {
   const sel = window.getSelection();
   if (!sel || sel.isCollapsed) return;
   const text = sel.toString().trim();
   if (text.length < 5) return;
-
-  // 判断是移动端还是桌面
   const isMobile = window.innerWidth <= 700;
   if (isMobile) {
     document.getElementById('quoteBoxM').value = text;
@@ -311,25 +360,17 @@ function onSelect() {
     document.getElementById('quoteBox').value = text;
     document.getElementById('noteBox').focus();
   }
-  toast('✏️ 已填入引用，写下你的想法吧');
+  toast('\u2712\ufe0f \u5df2\u586b\u5165\u5f15\u7528\uff0c\u5199\u4e0b\u4f60\u7684\u60f3\u6cd5\u5427');
 }
 
-// ── 提交批注 ──
-async function submitNote(isMobile = false) {
+async function submitNote(isMobile) {
   const quote = (isMobile ? document.getElementById('quoteBoxM') : document.getElementById('quoteBox')).value.trim();
   const note  = (isMobile ? document.getElementById('noteBoxM')  : document.getElementById('noteBox')).value.trim();
   const title = (isMobile ? document.getElementById('bookTitleM'): document.getElementById('bookTitle')).value.trim();
-
-  if (!quote && !note) { toast('请先划选句子或写下批注', true); return; }
+  if (!quote && !note) { toast('\u8bf7\u5148\u5212\u9009\u53e5\u5b50\u6216\u5199\u4e0b\u6279\u6ce8', true); return; }
 
   const btn = document.getElementById('submitBtn');
-  if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
-
-  const content = [
-    title ? `📖 《${title}》` : '',
-    quote ? `「${quote}」` : '',
-    note  ? `批注：${note}` : ''
-  ].filter(Boolean).join('\n');
+  if (btn) { btn.disabled = true; btn.textContent = '\u4fdd\u5b58\u4e2d\u2026'; }
 
   try {
     const r = await fetch('/api/book-note', {
@@ -340,49 +381,46 @@ async function submitNote(isMobile = false) {
     if (r.ok) {
       if (isMobile) {
         document.getElementById('quoteBoxM').value = '';
-        document.getElementById('noteBoxM').value  = '';
+        document.getElementById('noteBoxM').value = '';
         closeDrawer();
       } else {
         document.getElementById('quoteBox').value = '';
-        document.getElementById('noteBox').value  = '';
+        document.getElementById('noteBox').value = '';
       }
-      toast('📖 批注已存入记忆岛');
+      toast('\ud83d\udcd6 \u6279\u6ce8\u5df2\u5b58\u5165\u8bb0\u5fc6\u5c9b');
       loadHistory();
-    } else { toast('保存失败', true); }
-  } catch(e) { toast('网络错误', true); }
+    } else { toast('\u4fdd\u5b58\u5931\u8d25', true); }
+  } catch(e) { toast('\u7f51\u7edc\u9519\u8bef', true); }
 
-  if (btn) { btn.disabled = false; btn.textContent = '存入记忆岛 →'; }
+  if (btn) { btn.disabled = false; btn.textContent = '\u5b58\u5165\u8bb0\u5fc6\u5c9b \u2192'; }
 }
 
-// ── 历史批注 ──
 async function loadHistory() {
   try {
-    const r = await fetch('/api/read?area=读书&limit=20&token=' + encodeURIComponent(TOKEN));
+    const r = await fetch('/api/read?area=' + encodeURIComponent('\u8bfb\u4e66') + '&limit=20&token=' + encodeURIComponent(TOKEN));
     if (!r.ok) return;
     const mems = await r.json();
     const el = document.getElementById('historyList');
-    if (!mems.length) { el.innerHTML = '<div class="no-notes">还没有批注</div>'; return; }
+    if (!mems.length) { el.innerHTML = '<div class="no-notes">\u8fd8\u6ca1\u6709\u6279\u6ce8</div>'; return; }
     el.innerHTML = mems.map(m => {
       const lines = m.content.split('\n');
-      const bookLine  = lines.find(l => l.startsWith('📖')) || '';
-      const quoteLine = lines.find(l => l.startsWith('「')) || '';
-      const noteLine  = lines.find(l => l.startsWith('批注：')) || '';
+      const bookLine  = lines.find(l => l.includes('\u300a')) || '';
+      const quoteLine = lines.find(l => l.startsWith('\u300c')) || '';
+      const noteLine  = lines.find(l => l.startsWith('\u6279\u6ce8\uff1a')) || '';
       const t = m.time ? m.time.replace('T',' ').slice(5,16) : '';
-      return `<div class="note-item">
-        ${bookLine ? `<div style="font-size:10px;color:var(--ink-3);margin-bottom:4px">${esc(bookLine)}</div>` : ''}
-        ${quoteLine ? `<div class="note-item-quote">${esc(quoteLine)}</div>` : ''}
-        ${noteLine  ? `<div class="note-item-note">${esc(noteLine.replace('批注：',''))}</div>` : ''}
-        <div class="note-item-meta">${t}</div>
-      </div>`;
+      return '<div class="note-item">'
+        + (bookLine  ? '<div style="font-size:10px;color:var(--ink-3);margin-bottom:4px">' + esc(bookLine) + '</div>' : '')
+        + (quoteLine ? '<div class="note-item-quote">' + esc(quoteLine) + '</div>' : '')
+        + (noteLine  ? '<div class="note-item-note">' + esc(noteLine.replace('\u6279\u6ce8\uff1a','')) + '</div>' : '')
+        + '<div class="note-item-meta">' + t + '</div>'
+        + '</div>';
     }).join('');
   } catch(e) {}
 }
 
-// ── 移动端抽屉 ──
 function openDrawer()  { document.getElementById('drawerBg').classList.add('show'); }
 function closeDrawer() { document.getElementById('drawerBg').classList.remove('show'); }
 
-// ── 工具 ──
 let toastTimer;
 function toast(msg, warn) {
   const el = document.getElementById('toast');
