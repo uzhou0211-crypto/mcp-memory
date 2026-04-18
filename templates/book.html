@@ -93,6 +93,11 @@ header{padding:12px 20px;display:flex;align-items:center;justify-content:space-b
   <header>
     <div class="logo">&#128214; &#35835;&#20070;&#23707;</div>
     <div class="book-info" id="bookInfo">&#36824;&#27809;&#26377;&#25171;&#24320;&#20070;</div>
+    <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-3)">
+      <button onclick="changeFontSize(-1)" style="width:28px;height:28px;border:1px solid var(--border);border-radius:50%;background:transparent;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink-2)">A</button>
+      <span id="fontSizeLabel" style="font-size:11px;min-width:30px;text-align:center">18px</span>
+      <button onclick="changeFontSize(1)" style="width:32px;height:32px;border:1px solid var(--border);border-radius:50%;background:transparent;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--ink-2)">A</button>
+    </div>
     <a href="/" class="hdr-btn">&#127965; &#36820;&#22238;&#23707;&#23627;</a>
     <button class="hdr-btn" onclick="document.getElementById('fileInput').click()">&#25442;&#19968;&#26412;&#20070;</button>
   </header>
@@ -415,6 +420,23 @@ function toast(msg, warn) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => el.className = '', 2600);
 }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+let currentFontSize = parseInt(localStorage.getItem('readerFontSize') || '18');
+
+function applyFontSize() {
+  document.getElementById('reader').style.fontSize = currentFontSize + 'px';
+  const label = document.getElementById('fontSizeLabel');
+  if (label) label.textContent = currentFontSize + 'px';
+  localStorage.setItem('readerFontSize', currentFontSize);
+}
+
+function changeFontSize(delta) {
+  currentFontSize = Math.min(32, Math.max(12, currentFontSize + delta));
+  applyFontSize();
+}
+
+// Apply on load
+applyFontSize();
 </script>
 </body>
 </html>
