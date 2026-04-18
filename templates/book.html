@@ -328,7 +328,13 @@ async function loadEPUB(file) {
 
 function renderText(text) {
   const reader = document.getElementById('reader');
-  const paras = text.split(/\n{2,}/).filter(p => p.trim());
+  // Try double newline split first, fall back to single newline
+  let paras = text.split(/\n{2,}/).filter(p => p.trim());
+  if (paras.length < 3) {
+    paras = text.split(/\n/).filter(p => p.trim());
+  }
+  // If still nothing, just show the whole text
+  if (!paras.length) paras = [text];
   reader.innerHTML = paras.map(p => '<p>' + esc(p.trim()) + '</p>').join('');
 }
 
