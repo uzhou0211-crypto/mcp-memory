@@ -330,8 +330,15 @@ async function loadEPUB(file) {
   reader.innerHTML = '';
   const total = spineItems.length;
 
+  // Show debug info on screen
+  const dbg = document.createElement('div');
+  dbg.id = 'debugInfo';
+  dbg.style.cssText = 'padding:16px;font-size:12px;color:var(--ink-2);background:var(--paper-2);border-radius:8px;margin-bottom:12px;white-space:pre-wrap;';
+  dbg.textContent = 'OPF: ' + opfPath + '\nOPF dir: ' + opfDir + '\nChapters found: ' + total + '\nFiles in zip: ' + Object.keys(zip.files).slice(0,10).join(', ');
+  reader.appendChild(dbg);
+
   if (total === 0) {
-    reader.innerHTML = '<p style="color:var(--ink-3);text-align:center;padding:40px">\u672a\u80fd\u89e3\u6790\u5185\u5bb9\uff0c\u8bf7\u5c1d\u8bd5\u8f6c\u6362\u6210 TXT \u683c\u5f0f</p>';
+    reader.innerHTML = '<p style="color:var(--ink-3);text-align:center;padding:40px">\u672a\u80fd\u89e3\u6790\u5185\u5bb9\uff0c\u8bf7\u5c1d\u8bd5\u8f6c\u6362\u6210 TXT \u683c\u5f0f</p>' + dbg.outerHTML;
     return;
   }
 
