@@ -252,156 +252,70 @@ async function loadPDF(file) {
 }
 
 async function loadEPUB(file) {
-  document.getElementById('progText').textContent = '\u6b63\u5728\u89e3\u6790 EPUB\u2026';
-  document.getElementById('progFill').style.width = '10%';
-
-  const buf = await file.arrayBuffer();
-  const zip = await JSZip.loadAsync(buf);
-
-  document.getElementById('progFill').style.width = '20%';
-
-  // Step 1: find OPF path from container.xml
-  let opfPath = '';
-  const containerFile = zip.file('META-INF/container.xml');
-  if (containerFile) {
-    const xml = await containerFile.async('text');
-    const m = xml.match(/full-path=["']([^"']+\.opf)["']/);
-    if (m) opfPath = m[1];
-  }
-  if (!opfPath) {
-    Object.keys(zip.files).forEach(k => { if (k.endsWith('.opf') && !opfPath) opfPath = k; });
-  }
-
-  document.getElementById('progFill').style.width = '35%';
-
-  // Step 2: parse OPF to get spine order
-  let spineItems = [];
-  let opfDir = '';
-
-  if (opfPath) {
-    const parts = opfPath.split('/');
-    parts.pop();
-    opfDir = parts.join('/');
-
-    const opfFile = zip.file(opfPath);
-    if (opfFile) {
-      const opfXml = await opfFile.async('text');
-      const parser = new DOMParser();
-      const opfDoc = parser.parseFromString(opfXml, 'application/xml');
-
-      const idMap = {};
-      opfDoc.querySelectorAll('item, manifest > *').forEach(item => {
-        const id   = item.getAttribute('id');
-        const href = item.getAttribute('href');
-        const mt   = item.getAttribute('media-type') || '';
-        if (id && href && (mt.includes('html') || href.endsWith('.html') || href.endsWith('.xhtml') || href.endsWith('.htm'))) {
-          idMap[id] = href;
-        }
-      });
-
-      opfDoc.querySelectorAll('itemref, spine > *').forEach(ref => {
-        const idref = ref.getAttribute('idref');
-        if (idref && idMap[idref]) {
-          const href = opfDir ? opfDir + '/' + idMap[idref] : idMap[idref];
-          spineItems.push(href);
-        }
-      });
-    }
-  }
-
-  // Step 3: fallback — collect all html files sorted
-  if (!spineItems.length) {
-    const htmlFiles = [];
-    Object.keys(zip.files).forEach(k => {
-      if ((k.endsWith('.html') || k.endsWith('.xhtml') || k.endsWith('.htm'))
-          && !k.toLowerCase().includes('toc')
-          && !k.toLowerCase().includes('nav')) {
-        htmlFiles.push(k);
-      }
-    });
-    htmlFiles.sort();
-    spineItems = htmlFiles;
-  }
-
-  document.getElementById('progFill').style.width = '50%';
-
-  // Step 4: render each chapter
+  const prog = document.getElementById('progText');
+  const fill = document.getElementById('progFill');
   const reader = document.getElementById('reader');
+  prog.textContent = 'EPUB...';
+  fill.style.width = '10%';
   reader.innerHTML = '';
-  const total = spineItems.length;
-
-  // Show debug info on screen
-  const dbg = document.createElement('div');
-  dbg.id = 'debugInfo';
-  dbg.style.cssText = 'padding:16px;font-size:12px;color:var(--ink-2);background:var(--paper-2);border-radius:8px;margin-bottom:12px;white-space:pre-wrap;';
-  dbg.textContent = 'OPF: ' + opfPath + '\nOPF dir: ' + opfDir + '\nChapters found: ' + total + '\nFiles in zip: ' + Object.keys(zip.files).slice(0,10).join(', ');
-  reader.appendChild(dbg);
-
-  if (total === 0) {
-    reader.innerHTML = '<p style="color:var(--ink-3);text-align:center;padding:40px">\u672a\u80fd\u89e3\u6790\u5185\u5bb9\uff0c\u8bf7\u5c1d\u8bd5\u8f6c\u6362\u6210 TXT \u683c\u5f0f</p>' + dbg.outerHTML;
-    return;
-  }
-
-  for (let i = 0; i < total; i++) {
-    const path = spineItems[i];
-    // Try multiple path variants
-    const candidates = [
-      path,
-      decodeURIComponent(path),
-      path.replace(/^\//, ''),
-      opfDir ? path.replace(opfDir + '/', '') : path,
-    ];
-    let chapterFile = null;
-    for (const c of candidates) {
-      chapterFile = zip.file(c);
-      if (chapterFile) break;
+  try {
+    const buf = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(buf);
+    fill.style.width = '30%';
+    const allKeys = Object.keys(zip.files);
+    const htmlKeys = allKeys.filter(k =>
+      !zip.files[k].dir &&
+      (k.endsWith('.html') || k.endsWith('.xhtml') || k.endsWith('.htm'))
+    ).sort();
+    let ordered = [];
+    const opfKey = allKeys.find(k => k.endsWith('.opf'));
+    if (opfKey) {
+      const opfText = await zip.file(opfKey).async('text');
+      const opfDir = opfKey.includes('/') ? opfKey.split('/').slice(0,-1).join('/') + '/' : '';
+      const idHref = {};
+      let m;
+      const re1 = /id=["']([^"']+)["'][^>]*href=["']([^"']+)["']/g;
+      while ((m = re1.exec(opfText)) !== null) idHref[m[1]] = m[2];
+      const re2 = /idref=["']([^"']+)["']/g;
+      while ((m = re2.exec(opfText)) !== null) {
+        const href = idHref[m[1]];
+        if (href) {
+          const full = opfDir + href.split('#')[0];
+          if (zip.file(full)) ordered.push(full);
+        }
+      }
     }
-    if (!chapterFile) continue;
-
-    const chapterHtml = await chapterFile.async('text');
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(chapterHtml, 'text/html');
-
-    doc.querySelectorAll('script, style, link, head').forEach(el => el.remove());
-
-    const body = doc.body;
-    if (!body || !body.textContent.trim()) continue;
-
-    const div = document.createElement('div');
-    div.style.marginBottom = '2em';
-
-    // Convert elements to clean versions
-    body.querySelectorAll('h1,h2,h3,h4').forEach(h => {
-      h.removeAttribute('style'); h.removeAttribute('class');
-    });
-    body.querySelectorAll('p,div,span').forEach(el => {
-      el.removeAttribute('style'); el.removeAttribute('class');
-      el.removeAttribute('id');
-    });
-    body.querySelectorAll('img,image,svg').forEach(el => el.remove());
-    body.querySelectorAll('a').forEach(a => {
-      const span = document.createElement('span');
-      span.textContent = a.textContent;
-      a.replaceWith(span);
-    });
-
-    div.innerHTML = body.innerHTML;
-
-    // If div is still empty after cleanup, extract text
-    if (!div.textContent.trim()) continue;
-
-    reader.appendChild(div);
-
-    const pct = 50 + Math.round((i + 1) / total * 50);
-    document.getElementById('progFill').style.width = pct + '%';
-    document.getElementById('progText').textContent = '\u6b63\u5728\u52a0\u8f7d\u7b2c ' + (i+1) + ' / ' + total + ' \u7ae0\u2026';
-
-    // Yield to browser every 5 chapters so UI doesn't freeze
-    if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
-  }
-
-  if (!reader.textContent.trim()) {
-    reader.innerHTML = '<p style="color:var(--ink-3);text-align:center;padding:40px">\u672a\u80fd\u89e3\u6790\u5185\u5bb9\uff0c\u8bf7\u5c1d\u8bd5\u8f6c\u6362\u6210 TXT \u683c\u5f0f</p>';
+    if (!ordered.length) ordered = htmlKeys;
+    fill.style.width = '50%';
+    let rendered = 0;
+    for (let i = 0; i < ordered.length; i++) {
+      const zf = zip.file(ordered[i]);
+      if (!zf) continue;
+      const text = await zf.async('text');
+      const tmp = document.createElement('div');
+      tmp.innerHTML = text;
+      tmp.querySelectorAll('script,style,link,head,meta,img,svg,figure').forEach(el => el.remove());
+      const body = tmp.querySelector('body') || tmp;
+      if (!body.textContent.trim()) continue;
+      const chunk = document.createElement('div');
+      chunk.style.marginBottom = '2em';
+      const paras = body.textContent.split(/\n+/).filter(p => p.trim());
+      paras.forEach(p => {
+        const el = document.createElement('p');
+        el.textContent = p.trim();
+        chunk.appendChild(el);
+      });
+      reader.appendChild(chunk);
+      rendered++;
+      fill.style.width = (50 + Math.round((i+1)/ordered.length*50)) + '%';
+      prog.textContent = (i+1) + ' / ' + ordered.length;
+      if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+    }
+    if (!rendered) {
+      reader.innerHTML = '<p style="text-align:center;padding:40px;color:var(--ink-3)">\u89e3\u6790\u5931\u8d25\uff0c\u8bf7\u8f6c TXT \u518d\u8bd5</p>';
+    }
+  } catch(e) {
+    reader.innerHTML = '<p style="padding:20px;color:var(--warm)">Error: ' + e.message + '</p>';
   }
 }
 
