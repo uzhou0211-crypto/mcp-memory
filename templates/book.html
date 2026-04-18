@@ -258,86 +258,143 @@ async function loadEPUB(file) {
   const buf = await file.arrayBuffer();
   const zip = await JSZip.loadAsync(buf);
 
-  document.getElementById('progFill').style.width = '30%';
+  document.getElementById('progFill').style.width = '20%';
 
-  // Find OPF file
+  // Step 1: find OPF path from container.xml
   let opfPath = '';
-  const container = zip.file('META-INF/container.xml');
-  if (container) {
-    const containerXml = await container.async('text');
-    const match = containerXml.match(/full-path="([^"]+\.opf)"/);
-    if (match) opfPath = match[1];
+  const containerFile = zip.file('META-INF/container.xml');
+  if (containerFile) {
+    const xml = await containerFile.async('text');
+    const m = xml.match(/full-path=["']([^"']+\.opf)["']/);
+    if (m) opfPath = m[1];
   }
   if (!opfPath) {
-    // fallback: find any .opf
-    Object.keys(zip.files).forEach(k => { if (k.endsWith('.opf')) opfPath = k; });
+    Object.keys(zip.files).forEach(k => { if (k.endsWith('.opf') && !opfPath) opfPath = k; });
   }
 
+  document.getElementById('progFill').style.width = '35%';
+
+  // Step 2: parse OPF to get spine order
   let spineItems = [];
-  const opfDir = opfPath ? opfPath.split('/').slice(0, -1).join('/') : '';
+  let opfDir = '';
 
-  if (opfPath && zip.file(opfPath)) {
-    const opfXml = await zip.file(opfPath).async('text');
-    const parser = new DOMParser();
-    const opfDoc = parser.parseFromString(opfXml, 'application/xml');
+  if (opfPath) {
+    const parts = opfPath.split('/');
+    parts.pop();
+    opfDir = parts.join('/');
 
-    // Build id->href map
-    const idMap = {};
-    opfDoc.querySelectorAll('manifest item').forEach(item => {
-      idMap[item.getAttribute('id')] = item.getAttribute('href');
-    });
+    const opfFile = zip.file(opfPath);
+    if (opfFile) {
+      const opfXml = await opfFile.async('text');
+      const parser = new DOMParser();
+      const opfDoc = parser.parseFromString(opfXml, 'application/xml');
 
-    // Get spine order
-    opfDoc.querySelectorAll('spine itemref').forEach(ref => {
-      const idref = ref.getAttribute('idref');
-      if (idMap[idref]) {
-        const href = opfDir ? opfDir + '/' + idMap[idref] : idMap[idref];
-        spineItems.push(href);
-      }
-    });
+      const idMap = {};
+      opfDoc.querySelectorAll('item, manifest > *').forEach(item => {
+        const id   = item.getAttribute('id');
+        const href = item.getAttribute('href');
+        const mt   = item.getAttribute('media-type') || '';
+        if (id && href && (mt.includes('html') || href.endsWith('.html') || href.endsWith('.xhtml') || href.endsWith('.htm'))) {
+          idMap[id] = href;
+        }
+      });
+
+      opfDoc.querySelectorAll('itemref, spine > *').forEach(ref => {
+        const idref = ref.getAttribute('idref');
+        if (idref && idMap[idref]) {
+          const href = opfDir ? opfDir + '/' + idMap[idref] : idMap[idref];
+          spineItems.push(href);
+        }
+      });
+    }
   }
 
-  // Fallback: find all html/xhtml files
+  // Step 3: fallback — collect all html files sorted
   if (!spineItems.length) {
+    const htmlFiles = [];
     Object.keys(zip.files).forEach(k => {
-      if ((k.endsWith('.html') || k.endsWith('.xhtml') || k.endsWith('.htm')) && !k.includes('toc')) {
-        spineItems.push(k);
+      if ((k.endsWith('.html') || k.endsWith('.xhtml') || k.endsWith('.htm'))
+          && !k.toLowerCase().includes('toc')
+          && !k.toLowerCase().includes('nav')) {
+        htmlFiles.push(k);
       }
     });
-    spineItems.sort();
+    htmlFiles.sort();
+    spineItems = htmlFiles;
   }
 
   document.getElementById('progFill').style.width = '50%';
 
+  // Step 4: render each chapter
   const reader = document.getElementById('reader');
   reader.innerHTML = '';
   const total = spineItems.length;
 
+  if (total === 0) {
+    reader.innerHTML = '<p style="color:var(--ink-3);text-align:center;padding:40px">\u672a\u80fd\u89e3\u6790\u5185\u5bb9\uff0c\u8bf7\u5c1d\u8bd5\u8f6c\u6362\u6210 TXT \u683c\u5f0f</p>';
+    return;
+  }
+
   for (let i = 0; i < total; i++) {
     const path = spineItems[i];
-    const f = zip.file(path) || zip.file(decodeURIComponent(path));
-    if (!f) continue;
-    const html = await f.async('text');
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
+    // Try multiple path variants
+    const candidates = [
+      path,
+      decodeURIComponent(path),
+      path.replace(/^\//, ''),
+      opfDir ? path.replace(opfDir + '/', '') : path,
+    ];
+    let chapterFile = null;
+    for (const c of candidates) {
+      chapterFile = zip.file(c);
+      if (chapterFile) break;
+    }
+    if (!chapterFile) continue;
 
-    // Remove scripts and styles
-    doc.querySelectorAll('script, style, link').forEach(el => el.remove());
+    const chapterHtml = await chapterFile.async('text');
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(chapterHtml, 'text/html');
+
+    doc.querySelectorAll('script, style, link, head').forEach(el => el.remove());
 
     const body = doc.body;
-    if (body) {
-      // Keep structure but sanitize
-      const div = document.createElement('div');
-      div.innerHTML = body.innerHTML;
-      // Clean up inline styles that might interfere
-      div.querySelectorAll('[style]').forEach(el => el.removeAttribute('style'));
-      div.querySelectorAll('[class]').forEach(el => el.removeAttribute('class'));
-      reader.appendChild(div);
-    }
+    if (!body || !body.textContent.trim()) continue;
+
+    const div = document.createElement('div');
+    div.style.marginBottom = '2em';
+
+    // Convert elements to clean versions
+    body.querySelectorAll('h1,h2,h3,h4').forEach(h => {
+      h.removeAttribute('style'); h.removeAttribute('class');
+    });
+    body.querySelectorAll('p,div,span').forEach(el => {
+      el.removeAttribute('style'); el.removeAttribute('class');
+      el.removeAttribute('id');
+    });
+    body.querySelectorAll('img,image,svg').forEach(el => el.remove());
+    body.querySelectorAll('a').forEach(a => {
+      const span = document.createElement('span');
+      span.textContent = a.textContent;
+      a.replaceWith(span);
+    });
+
+    div.innerHTML = body.innerHTML;
+
+    // If div is still empty after cleanup, extract text
+    if (!div.textContent.trim()) continue;
+
+    reader.appendChild(div);
 
     const pct = 50 + Math.round((i + 1) / total * 50);
     document.getElementById('progFill').style.width = pct + '%';
     document.getElementById('progText').textContent = '\u6b63\u5728\u52a0\u8f7d\u7b2c ' + (i+1) + ' / ' + total + ' \u7ae0\u2026';
+
+    // Yield to browser every 5 chapters so UI doesn't freeze
+    if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+  }
+
+  if (!reader.textContent.trim()) {
+    reader.innerHTML = '<p style="color:var(--ink-3);text-align:center;padding:40px">\u672a\u80fd\u89e3\u6790\u5185\u5bb9\uff0c\u8bf7\u5c1d\u8bd5\u8f6c\u6362\u6210 TXT \u683c\u5f0f</p>';
   }
 }
 
