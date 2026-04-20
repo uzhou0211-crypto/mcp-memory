@@ -9,6 +9,7 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;600&family=Noto+Sans+SC:wght@300;400;500&display=swap');
 :root{--ink:#1c1a18;--ink-2:#4a4640;--ink-3:#9a9490;--paper:#faf8f4;--paper-2:#f3f0ea;--paper-3:#ece8e0;--warm:#c96442;--warm-soft:#f0ddd5;--teal:#4a8a80;--teal-soft:#d5eae8;--border:rgba(28,26,24,.1);--r:14px;--r-sm:9px}
+body.dark{--ink:#e8e4de;--ink-2:#b8b0a8;--ink-3:#6a6460;--paper:#1a1815;--paper-2:#222018;--paper-3:#2a2820;--warm:#e07856;--warm-soft:rgba(201,100,66,.2);--teal:#5a9a90;--teal-soft:rgba(74,138,128,.2);--border:rgba(232,228,222,.1)}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden;font-family:'Noto Sans SC',sans-serif;background:var(--paper);color:var(--ink);font-size:14px;line-height:1.7}
 #lockScreen{position:fixed;inset:0;background:var(--paper);z-index:999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px}
@@ -99,6 +100,7 @@ header{padding:12px 20px;display:flex;align-items:center;justify-content:space-b
       <button onclick="changeFontSize(-1)" style="width:28px;height:28px;border:1px solid var(--border);border-radius:50%;background:transparent;font-size:13px;cursor:pointer;color:var(--ink-2);">A-</button>
       <span id="fontSizeLabel" style="font-size:11px;min-width:32px;text-align:center;color:var(--ink-3);">18px</span>
       <button onclick="changeFontSize(1)" style="width:28px;height:28px;border:1px solid var(--border);border-radius:50%;background:transparent;font-size:16px;cursor:pointer;color:var(--ink-2);">A+</button>
+      <button id="darkBtn" onclick="toggleDark()" style="width:28px;height:28px;border:1px solid var(--border);border-radius:50%;background:transparent;font-size:15px;cursor:pointer;">&#9790;</button>
     </div>
   </header>
 
@@ -421,11 +423,25 @@ function toast(msg, warn) {
 }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+// Dark mode// 深色模式// 深色模式// 深色模式// 深色模式// 深色模式// 深色模式// 深色模式
+let isDark是否为深色模式isDark 是否为深色模式 = localStorage.getItem('readerDark') === '1';
+function applyDark() {
+  document.body.classList.toggle('dark', isDark);
+  const btn = document.getElementById('darkBtn');
+  if (btn) btn.textContent = isDark ? '\u2600\ufe0f' : '\u263e';如果 (btn) btn.textContent = isDark ? '\u2600\ufe0f' : '\u263e';如果 (btn) btn.textContent = isDark ? '\u2600\ufe0f' : '\u263e';如果 (btn) btn.textContent = isDark ? '\u2600\ufe0f' : '\u263e';
+}
+function toggleDark() {
+  isDark = !isDark;
+  localStorage.setItem('readerDark', isDark ? '1' : '0');
+  applyDark();
+}
+applyDark();
+
 let currentFontSize = parseInt(localStorage.getItem('readerFontSize') || '18');
 
 function applyFontSize() {
-  document.getElementById('reader').style.fontSize = currentFontSize + 'px';
-  const label = document.getElementById('fontSizeLabel');
+  document.getElementById('reader').style.fontSize = currentFontSize + 'px';document文档.getElementById('reader''阅读器''阅读器')stylefontSize样式字体大小=currentFontSize当前字体大小+'px''像素''像素''像素';document.getElementById('reader').style.fontSize = currentFontSize + 'px';文档.getElementById('reader''阅读器''阅读器')样式字体大小=当前字体大小+'px''像素''像素''像素';
+  const常量 label标签 = document文档.getElementById('fontSizeLabel');
   if (label) label.textContent = currentFontSize + 'px';
   localStorage.setItem('readerFontSize', currentFontSize);
 }
@@ -435,7 +451,7 @@ function changeFontSize(delta) {
   applyFontSize();
 }
 
-// Apply on load
+// Apply on load// 加载时应用// 加载时应用// 加载时应用// 在加载时应用// 加载时应用// 加载时应用// 在加载时应用// 加载时应用// 加载时应用// 加载时应用// 在加载时应用// 加载时应用// 加载时应用
 applyFontSize();
 </script>
 </body>
