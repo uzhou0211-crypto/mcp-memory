@@ -16,7 +16,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans SC',sans-serif;back
 #lockScreen h2{font-family:'Noto Serif SC',serif;font-size:20px}
 #lockInput{padding:10px 16px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--paper-2);color:var(--ink);font-family:inherit;font-size:14px;outline:none;width:220px;text-align:center}
 #lockInput:focus{border-color:var(--warm)}
-#lockBtn{padding:9px 28px;background:var(--warm);border:none;border-radius:var(--r-sm);color:#fff;font-family:inherit;font-size:14px;cursor:pointer}
+#lockBtn{padding:12px 36px;background:var(--warm);border:none;border-radius:var(--r-sm);color:#fff;font-family:inherit;font-size:16px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;min-width:120px;min-height:48px}
 #lockErr{font-size:12px;color:var(--warm);min-height:18px}
 .app{display:flex;flex-direction:column;height:100%}
 header{padding:12px 20px;display:flex;align-items:center;justify-content:space-between;background:rgba(250,248,244,.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);flex-shrink:0;gap:10px}
@@ -193,6 +193,7 @@ function doUnlock() {
     }).catch(() => { document.getElementById('lockErr').textContent = '\u8fde\u63a5\u5931\u8d25'; });
 }
 document.getElementById('lockInput').addEventListener('keydown', e => { if(e.key==='Enter') doUnlock(); });
+document.getElementById('lockBtn').addEventListener('touchend', e => { e.preventDefault(); doUnlock(); });
 
 if (TOKEN) {
   fetch('/api/state?token=' + encodeURIComponent(TOKEN))
@@ -423,12 +424,12 @@ function toast(msg, warn) {
 }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// Dark mode// 深色模式// 深色模式// 深色模式// 深色模式// 深色模式// 深色模式// 深色模式
-let isDark是否为深色模式isDark 是否为深色模式 = localStorage.getItem('readerDark') === '1';
+// Dark mode
+let isDark = localStorage.getItem('readerDark') === '1';
 function applyDark() {
   document.body.classList.toggle('dark', isDark);
   const btn = document.getElementById('darkBtn');
-  if (btn) btn.textContent = isDark ? '\u2600\ufe0f' : '\u263e';如果 (btn) btn.textContent = isDark ? '\u2600\ufe0f' : '\u263e';如果 (btn) btn.textContent = isDark ? '\u2600\ufe0f' : '\u263e';如果 (btn) btn.textContent = isDark ? '\u2600\ufe0f' : '\u263e';
+  if (btn) btn.textContent = isDark ? '\u2600\ufe0f' : '\u263e';如果 (btn) btn.textContent = isDark ? '\u2600\ufe0f' : '\u263e';
 }
 function toggleDark() {
   isDark = !isDark;
@@ -440,8 +441,8 @@ applyDark();
 let currentFontSize = parseInt(localStorage.getItem('readerFontSize') || '18');
 
 function applyFontSize() {
-  document.getElementById('reader').style.fontSize = currentFontSize + 'px';document文档.getElementById('reader''阅读器''阅读器')stylefontSize样式字体大小=currentFontSize当前字体大小+'px''像素''像素''像素';document.getElementById('reader').style.fontSize = currentFontSize + 'px';文档.getElementById('reader''阅读器''阅读器')样式字体大小=当前字体大小+'px''像素''像素''像素';
-  const常量 label标签 = document文档.getElementById('fontSizeLabel');
+  document.getElementById('reader').style.fontSize = currentFontSize + 'px';document.getElementById('reader')stylefontSize=currentFontSize+'px';
+  const label = document.getElementById('fontSizeLabel');
   if (label) label.textContent = currentFontSize + 'px';
   localStorage.setItem('readerFontSize', currentFontSize);
 }
@@ -451,7 +452,7 @@ function changeFontSize(delta) {
   applyFontSize();
 }
 
-// Apply on load// 加载时应用// 加载时应用// 加载时应用// 在加载时应用// 加载时应用// 加载时应用// 在加载时应用// 加载时应用// 加载时应用// 加载时应用// 在加载时应用// 加载时应用// 加载时应用
+// Apply on load// 加载时应用
 applyFontSize();
 </script>
 </body>
