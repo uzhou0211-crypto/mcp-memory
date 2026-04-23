@@ -537,6 +537,11 @@ def book():
     return render_template("book.html")
 
 
+@app.route("/paper")
+def paper():
+    return render_template("paper.html")
+
+
 @app.route("/health")
 def health():
     try:
