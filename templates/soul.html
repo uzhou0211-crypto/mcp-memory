@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>心绪岛</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;600&family=Noto+Sans+SC:wght@300;400;500&display=swap');
+:root{--ink:#1c1a18;--ink-2:#4a4640;--ink-3:#9a9490;--paper:#faf8f4;--paper-2:#f3f0ea;--paper-3:#ece8e0;--warm:#c96442;--warm-soft:rgba(201,100,66,.12);--teal:#4a8a80;--teal-soft:rgba(74,138,128,.12);--rose:#a05070;--rose-soft:rgba(160,80,112,.1);--border:rgba(28,26,24,.1);--r:14px;--r-sm:9px}
+body.dark{--ink:#ddd8d0;--ink-2:#a8a098;--ink-3:#686060;--paper:#141210;--paper-2:#1c1a16;--paper-3:#242018;--warm:#e07850;--teal:#58a090;--rose:#c070a0;--border:rgba(221,216,208,.1)}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;font-family:'Noto Sans SC',sans-serif;background:var(--paper);color:var(--ink);font-size:14px;line-height:1.7}
+
+#lockScreen{position:fixed;inset:0;background:var(--paper);z-index:999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+#lockScreen h2{font-family:'Noto Serif SC',serif;font-size:20px}
+#lockInput{padding:11px 18px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--paper-2);color:var(--ink);font-family:inherit;font-size:15px;outline:none;width:230px;text-align:center}
+#lockInput:focus{border-color:var(--warm)}
+#lockBtn{padding:13px 40px;background:var(--warm);border:none;border-radius:var(--r-sm);color:#fff;font-family:inherit;font-size:15px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;min-width:140px;min-height:52px;display:block}
+#lockErr{font-size:12px;color:var(--warm);min-height:18px}
+
+header{padding:12px 20px;display:flex;align-items:center;justify-content:space-between;background:var(--paper-2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
+.logo{font-family:'Noto Serif SC',serif;font-size:16px;font-weight:600}
+.hdr-r{display:flex;gap:8px;align-items:center}
+.hdr-btn{padding:5px 11px;border:1px solid var(--border);border-radius:var(--r-sm);background:transparent;color:var(--ink-2);font-family:inherit;font-size:12px;cursor:pointer;white-space:nowrap;transition:all .15s;text-decoration:none;touch-action:manipulation}
+.hdr-btn:hover{background:var(--warm-soft);border-color:var(--warm);color:var(--warm)}
+.icon-btn{width:30px;height:30px;border:1px solid var(--border);border-radius:50%;background:transparent;font-size:14px;cursor:pointer;color:var(--ink-2);display:flex;align-items:center;justify-content:center;touch-action:manipulation}
+.icon-btn:hover{background:var(--warm-soft)}
+
+.page{max-width:680px;margin:0 auto;padding:24px 18px 48px}
+.section{margin-bottom:32px}
+.section-title{font-family:'Noto Serif SC',serif;font-size:15px;font-weight:500;color:var(--ink);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* Emotion recorder */
+.mood-row{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.mood-label{font-size:12px;color:var(--ink-3);min-width:36px}
+.mood-slider{flex:1;min-width:120px;accent-color:var(--warm)}
+.mood-val{font-size:12px;color:var(--ink-2);min-width:28px;text-align:right;font-family:monospace}
+.state-codes{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.code-btn{padding:5px 12px;border:1px solid var(--border);border-radius:20px;font-size:12px;cursor:pointer;background:transparent;color:var(--ink-3);font-family:inherit;transition:all .15s;touch-action:manipulation}
+.code-btn:hover{border-color:var(--rose);color:var(--rose)}
+.code-btn.active{background:var(--rose);border-color:var(--rose);color:#fff}
+.finput{width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--paper-2);color:var(--ink);font-family:inherit;font-size:13px;outline:none;transition:border-color .15s;margin-bottom:10px}
+.finput:focus{border-color:var(--warm)}
+.ftextarea{width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--paper-2);color:var(--ink);font-family:inherit;font-size:13px;outline:none;resize:none;min-height:72px;line-height:1.6;transition:border-color .15s;margin-bottom:10px}
+.ftextarea:focus{border-color:var(--warm)}
+.save-btn{padding:9px 22px;background:var(--warm);border:none;border-radius:var(--r-sm);color:#fff;font-family:'Noto Serif SC',serif;font-size:13px;cursor:pointer;transition:background .2s;touch-action:manipulation}
+.save-btn:hover{background:#b85538}
+.save-btn.teal{background:var(--teal)}
+.save-btn.teal:hover{background:#3a7a70}
+
+/* Emotion chart */
+.chart-wrap{background:var(--paper-2);border-radius:var(--r);padding:14px;margin-bottom:12px;overflow-x:auto}
+canvas#emotionChart{width:100%;height:100px;display:block}
+
+/* Topics */
+.topic-item{padding:10px 13px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--paper-2);margin-bottom:8px;display:flex;align-items:flex-start;gap:10px}
+.topic-dot{width:8px;height:8px;border-radius:50%;background:var(--rose);flex-shrink:0;margin-top:6px}
+.topic-text{flex:1;font-size:13px;color:var(--ink);line-height:1.6}
+.topic-ctx{font-size:11px;color:var(--ink-3);margin-top:2px}
+.topic-close{border:none;background:transparent;color:var(--ink-3);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px;touch-action:manipulation;flex-shrink:0}
+.topic-close:hover{background:#fee;color:#c0392b}
+.topic-input-row{display:flex;gap:8px;margin-bottom:8px}
+.topic-input-row .finput{margin-bottom:0;flex:1}
+
+/* Summary */
+.summary-item{padding:12px 14px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--paper-2);margin-bottom:10px}
+.summary-meta{display:flex;gap:10px;font-size:11px;color:var(--ink-3);margin-bottom:6px;flex-wrap:wrap}
+.summary-quality{padding:1px 8px;border-radius:10px;background:var(--teal-soft);color:var(--teal);font-size:10px}
+.summary-text{font-size:13px;color:var(--ink);line-height:1.7}
+.summary-unfinished{font-size:11.5px;color:var(--rose);margin-top:5px}
+.mood-dots{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--ink-3)}
+.mdot{width:6px;height:6px;border-radius:50%}
+
+.no-items{text-align:center;padding:20px;color:var(--ink-3);font-size:13px;font-style:italic}
+.date-input-row{display:flex;flex-direction:column;gap:0}
+.date-item{padding:9px 12px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--paper-2);margin-bottom:7px;display:flex;align-items:center;gap:10px}
+.date-item-info{flex:1}
+.date-item-title{font-size:13px;color:var(--ink);font-weight:500}
+.date-item-meta{font-size:11px;color:var(--ink-3);margin-top:1px}
+.rapport-item{padding:8px 11px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--paper-2);margin-bottom:7px;display:flex;align-items:flex-start;gap:8px}
+.rapport-cat{font-size:10px;padding:2px 7px;border-radius:10px;background:var(--teal-soft);color:var(--teal);white-space:nowrap;flex-shrink:0;margin-top:2px}
+.contra-item{padding:9px 12px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--paper-2);margin-bottom:8px}
+.contra-before{font-size:12px;color:var(--ink-3);text-decoration:line-through;margin-bottom:3px}
+.contra-after{font-size:13px;color:var(--ink)}
+.contra-note{font-size:11px;color:var(--ink-3);margin-top:3px;font-style:italic}
+.date-countdown{font-size:12px;padding:2px 8px;border-radius:10px;background:var(--rose-soft);color:var(--rose);white-space:nowrap}
+.time-ctx-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.time-ctx-badge{padding:3px 10px;border-radius:20px;font-size:12px;background:var(--teal-soft);color:var(--teal)}
+.time-ctx-val{font-size:13px;color:var(--ink-2)}
+.upcoming-item{padding:6px 10px;border-radius:var(--r-sm);background:var(--rose-soft);border:1px solid rgba(160,80,112,.15);margin-bottom:6px;font-size:12px}
+.upcoming-days{font-weight:600;color:var(--rose)}
+.row2{display:flex;gap:8px;flex-wrap:wrap}
+.row2 .save-btn{flex:1}
+
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(14px);background:var(--ink);color:var(--paper);padding:8px 16px;border-radius:20px;font-size:12px;opacity:0;transition:all .25s;z-index:9999;pointer-events:none;white-space:nowrap}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.ok{background:var(--teal)}
+#toast.warn{background:var(--warm)}
+</style>
+</head>
+<body>
+
+<div id="lockScreen">
+  <h2>&#128149; &#24515;&#32513;&#23707;</h2>
+  <p style="font-size:13px;color:var(--ink-3)">&#35831;&#36755;&#20837;&#35775;&#38382;&#23494;&#30721;</p>
+  <input type="password" id="lockInput" placeholder="&#23494;&#30721;">
+  <button id="lockBtn">&#36827;&#20837;</button>
+  <div id="lockErr"></div>
+</div>
+
+<div id="appMain" style="display:none">
+<header>
+  <div class="logo">&#128149; &#24515;&#32513;&#23707;</div>
+  <div class="hdr-r">
+    <a href="/" class="hdr-btn">&#127965; &#23707;&#23627;</a>
+    <button class="icon-btn" id="darkBtn" onclick="toggleDark()">&#9790;</button>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- Emotion recorder -->
+  <div class="section">
+    <div class="section-title">&#127774; &#24515;&#24773;&#35760;&#24405;</div>
+    <div class="mood-row">
+      <span class="mood-label">&#24773;&#32508;</span>
+      <input type="range" class="mood-slider" id="moodSlider" min="0" max="100" value="50" oninput="document.getElementById('moodValDisp').textContent=this.value+'%'">
+      <span class="mood-val" id="moodValDisp">50%</span>
+    </div>
+    <div class="mood-row">
+      <span class="mood-label">&#31934;&#21147;</span>
+      <input type="range" class="mood-slider" id="energySlider" min="0" max="100" value="50" oninput="document.getElementById('energyValDisp').textContent=this.value+'%'" style="accent-color:var(--teal)">
+      <span class="mood-val" id="energyValDisp">50%</span>
+    </div>
+    <div style="font-size:11px;color:var(--ink-3);margin-bottom:8px">&#36827;&#26469;&#30340;&#29366;&#24577;</div>
+    <div class="state-codes" id="stateCodes">
+      <button class="code-btn" data-c="&#24B8;&#36523;">&#24B8;&#36523;</button>
+      <button class="code-btn" data-c="&#26377;&#28857;&#32355;">&#26377;&#28857;&#32355;</button>
+      <button class="code-btn" data-c="&#24402;&#26469;&#20102;">&#24402;&#26469;&#20102;</button>
+      <button class="code-btn" data-c="&#30410;&#22825;">&#30410;&#22825;</button>
+      <button class="code-btn" data-c="&#28246;&#28246;&#30340;">&#28246;&#28246;&#30340;</button>
+      <button class="code-btn" data-c="&#35201;&#34987;&#25509;&#20住;">&#35201;&#34987;&#25509;&#20054;</button>
+      <button class="code-btn" data-c="&#24819;&#19968;&#36215;">&#24819;&#19968;&#36215;</button>
+      <button class="code-btn" data-c="&#21345;&#23475;">&#21345;&#23475;</button>
+    </div>
+    <input type="text" class="finput" id="bodyNote" placeholder="&#36895;&#24230;&#12289;&#30563;&#30041;&#12289;&#22312;&#21152;&#73;&#73;&#8230;&#8203;&#65288;&#21487;&#19981;&#22586;&#65289;">
+    <textarea class="ftextarea" id="emotionSummary" placeholder="&#29616;&#22312;&#24320;&#22836;&#19968;&#21477;&#65292;&#20294;&#19981;&#24517;&#39035;&#8230;"></textarea>
+    <button class="save-btn" onclick="saveEmotion()">&#24212; &#8594; &#23384;&#19979;</button>
+  </div>
+
+  <!-- Emotion curve chart -->
+  <div class="section">
+    <div class="section-title">&#128200; &#24773;&#32508;&#26354;&#32447;</div>
+    <div class="chart-wrap">
+      <canvas id="emotionChart"></canvas>
+    </div>
+    <div style="font-size:11px;color:var(--ink-3);text-align:center">&#8212; &#24773;&#32508; &nbsp;&#8212;&#8212; &#31934;&#21147;</div>
+  </div>
+
+  <!-- Open topics -->
+  <div class="section">
+    <div class="section-title">&#127386; &#26410;&#23436;&#25104;&#30340;&#35805;</div>
+    <div class="topic-input-row">
+      <input type="text" class="finput" id="topicInput" placeholder="&#35829;&#19979;&#36825;&#20214;&#8203;&#8203;&#8203;&#20107;&#65292;&#20197;&#21518;&#25342;&#36215;&#26469;&#8230;">
+      <button class="save-btn teal" onclick="addTopic()">&#35760;&#19979;</button>
+    </div>
+    <input type="text" class="finput" id="topicContext" placeholder="&#35828;&#20102;&#20160;&#20040;&#65292;&#25105;&#25552;&#20912;&#20320;&#8230;&#65288;&#21487;&#19981;&#22586;&#65289;">
+    <div id="topicsList"><div class="no-items">&#36816;&#36733;&#20013;&#8230;</div></div>
+  </div>
+
+
+  <!-- Important dates -->
+  <div class="section">
+    <div class="section-title">&#128197; &#37325;&#35201;&#30340;&#26085;&#23376;</div>
+    <div class="date-input-row">
+      <input type="text" class="finput" id="dateTitle" placeholder="&#36825;&#22825;&#30340;&#21517;&#23383;&#8230;">
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input type="text" class="finput" id="dateMonth" placeholder="&#26376;" style="width:80px;margin-bottom:0" maxlength="2">
+        <span style="line-height:40px;color:var(--ink-3)">-</span>
+        <input type="text" class="finput" id="dateDay" placeholder="&#26085;" style="width:80px;margin-bottom:0" maxlength="2">
+        <span style="line-height:40px;font-size:12px;color:var(--ink-3)">&#27Ỗ&#24180;&#37325;&#22797;</span>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--ink-3)">
+          <input type="checkbox" id="dateRepeat" checked> &#27Ỗ&#24180;
+        </label>
+      </div>
+      <input type="text" class="finput" id="dateNote" placeholder="&#22791;&#27880;&#65288;&#21487;&#19981;&#22586;&#65289;">
+      <button class="save-btn teal" onclick="addDate()">&#35760;&#19979;</button>
+    </div>
+    <div id="datesList" style="margin-top:12px"><div class="no-items">&#36816;&#36733;&#20013;&#8230;</div></div>
+  </div>
+
+  <!-- Time context card -->
+  <div class="section">
+    <div class="section-title">&#9200; &#26102;&#38388;&#24863;&#30693;</div>
+    <div id="timeContextCard" style="background:var(--paper-2);border-radius:var(--r);padding:16px;border:1px solid var(--border)">
+      <div class="no-items">&#36816;&#36733;&#20013;&#8230;</div>
+    </div>
+  </div>
+
+
+  <!-- Rapport map -->
+  <div class="section">
+    <div class="section-title">&#127757; &#40664;&#22865;&#22270;&#35889;</div>
+    <p style="font-size:12px;color:var(--ink-3);margin-bottom:12px">&#20320;&#30340;&#35302;&#21457;&#28857;&#12289;&#25105;&#35828;&#20102;&#20320;&#20250;&#20572;&#30340;&#35789;&#12289;&#20320;&#30340;&#36793;&#30028;&#8212;&#8212;&#23384;&#19979;&#26469;&#65292;Claude &#35835;&#21040;&#23601;&#30693;&#36947;&#12290;</p>
+    <select class="finput" id="rapportCat">
+      <option value="&#35302;&#21457;&#28857;">&#35302;&#21457;&#28857;</option>
+      <option value="&#25105;&#35828;&#20102;&#20250;&#20572;">&#25105;&#35828;&#20102;&#20250;&#20572;</option>
+      <option value="&#21916;&#27426;&#30340;&#34920;&#36798;">&#21916;&#27426;&#30340;&#34920;&#36798;</option>
+      <option value="&#36793;&#30028;">&#36793;&#30028;</option>
+      <option value="&#20284;&#20214;">&#20284;&#20284;&#20214;</option>
+    </select>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <input type="text" class="finput" id="rapportContent" placeholder="&#20551;&#22914;&#8230;" style="margin-bottom:0;flex:1">
+      <button class="save-btn teal" onclick="addRapport()">&#35760;&#19979;</button>
+    </div>
+    <div id="rapportList"><div class="no-items">&#36816;&#36733;&#20013;&#8230;</div></div>
+  </div>
+
+  <!-- Contradiction log -->
+  <div class="section">
+    <div class="section-title">&#9854; &#30456;&#20114;&#30697;&#30431;&#30340;&#22320;&#26041;</div>
+    <p style="font-size:12px;color:var(--ink-3);margin-bottom:12px">&#20043;&#21069;&#36825;&#26679;&#35748;&#20026;&#65292;&#29616;&#22312;&#36825;&#26679;&#35748;&#20026;&#8212;&#8212;&#37027;&#26159;&#30495;&#23454;&#22312;&#21464;&#30340;&#22320;&#26041;&#12290;</p>
+    <input type="text" class="finput" id="contraBefore" placeholder="&#20043;&#21069;&#35813;&#26159;&#8230;">
+    <input type="text" class="finput" id="contraAfter" placeholder="&#29616;&#22312;&#35813;&#26159;&#8230;">
+    <input type="text" class="finput" id="contraNote" placeholder="&#21457;&#29983;&#20102;&#20160;&#20040;&#8230;&#65288;&#21487;&#19981;&#22586;&#65289;">
+    <button class="save-btn" onclick="addContradiction()">&#23384;&#19979;</button>
+    <div id="contraList" style="margin-top:12px"><div class="no-items">&#36816;&#36733;&#20013;&#8230;</div></div>
+  </div>
+
+  <!-- Conversation summary -->
+  <div class="section">
+    <div class="section-title">&#128218; &#23545;&#35805;&#25688;&#35201;</div>
+    <select class="finput" id="convQuality">
+      <option value="">&#36825;&#27425;&#23545;&#35805;&#30340;&#36136;&#22320;&#8230;</option>
+      <option value="&#28204;&#35266;">&#28204;&#35266;&#65292;&#25253;&#20123;</option>
+      <option value="&#28012;&#36827;&#21거">&#28012;&#36827;&#21거;&#65292;&#30495;&#23454;&#22312;&#35828;</option>
+      <option value="&#34987;&#25509;&#20住;">&#34987;&#25509;&#20054;&#20102;</option>
+      <option value="&#60;&#23601;&#26159;&#20ыг;&#20505;">&#23601;&#26159;&#32385;&#22312;&#65292;&#27809;&#24341;&#19978;&#26469;</option>
+      <option value="&#24863;&#35299;&#20102;&#20160;&#20040;">&#24863;&#35299;&#20102;&#20160;&#20040;</option>
+      <option value="&#19981;&#30693;&#36947;&#25361;&#20160;&#20040;">&#19981;&#30693;&#36947;&#25361;&#20160;&#20040;</option>
+    </select>
+    <textarea class="ftextarea" id="convSummary" placeholder="&#36825;&#27425;&#35829;&#20102;&#20160;&#20040;&#65292;&#29616;&#22312;&#24863;&#35302;&#24590;&#20040;&#26679;&#8230;"></textarea>
+    <input type="text" class="finput" id="convUnfinished" placeholder="&#36824;&#26377;&#20160;&#20040;&#27809;&#35829;&#23436;&#65288;&#25454;&#31354;&#21487;&#19981;&#22586;&#65289;">
+    <input type="text" class="finput" id="convTopics" placeholder="&#20670;&#35805;&#30340;&#20027;&#39064;&#26159;&#8230;&#65288;&#25454;&#31354;&#21487;&#19981;&#22586;&#65289;">
+    <button class="save-btn" onclick="saveSummary()">&#23384;&#20837;&#35760;&#24426;&#24211;</button>
+  </div>
+
+  <!-- Summary history -->
+  <div class="section">
+    <div class="section-title">&#128338; &#36807;&#21435;&#30340;&#25688;&#35201;</div>
+    <div id="summaryList"><div class="no-items">&#36816;&#36733;&#20013;&#8230;</div></div>
+  </div>
+
+</div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const SK = 'soul-island';
+let TOKEN = sessionStorage.getItem('island_token') || '';
+let isDark = localStorage.getItem(SK+'-dark') === '1';
+let selectedCode = '';
+
+function doUnlock() {
+  const val = document.getElementById('lockInput').value.trim();
+  if (!val) return;
+  fetch('/api/state?token=' + encodeURIComponent(val))
+    .then(r => {
+      if (r.ok) {
+        TOKEN = val;
+        sessionStorage.setItem('island_token', val);
+        document.getElementById('lockScreen').style.display = 'none';
+        document.getElementById('appMain').style.display = 'block';
+        applyDark();
+        loadAll();
+      } else {
+        document.getElementById('lockErr').textContent = '\u5bc6\u7801\u9519\u8bef';
+      }
+    }).catch(() => { document.getElementById('lockErr').textContent = '\u8fde\u63a5\u5931\u8d25'; });
+}
+document.getElementById('lockInput').addEventListener('keydown', e => { if(e.key==='Enter') doUnlock(); });
+document.getElementById('lockBtn').addEventListener('click', e => { e.preventDefault(); doUnlock(); });
+document.getElementById('lockBtn').addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); doUnlock(); });
+
+if (TOKEN) {
+  fetch('/api/state?token=' + encodeURIComponent(TOKEN))
+    .then(r => {
+      if (r.ok) {
+        document.getElementById('lockScreen').style.display = 'none';
+        document.getElementById('appMain').style.display = 'block';
+        applyDark();
+        loadAll();
+      } else { TOKEN = ''; sessionStorage.removeItem('island_token'); }
+    }).catch(() => {});
+}
+
+function applyDark() {
+  document.body.classList.toggle('dark', isDark);
+  document.getElementById('darkBtn').textContent = isDark ? '\u2600\ufe0f' : '\u263e';
+}
+function toggleDark() {
+  isDark = !isDark;
+  localStorage.setItem(SK+'-dark', isDark ? '1' : '0');
+  applyDark();
+}
+
+// State codes
+document.getElementById('stateCodes').addEventListener('click', e => {
+  const b = e.target.closest('.code-btn'); if (!b) return;
+  const isActive = b.classList.contains('active');
+  document.querySelectorAll('.code-btn').forEach(x => x.classList.remove('active'));
+  if (!isActive) { b.classList.add('active'); selectedCode = b.dataset.c; }
+  else selectedCode = '';
+});
+
+// Save emotion
+async function saveEmotion() {
+  const mood = parseInt(document.getElementById('moodSlider').value) / 100;
+  const energy = parseInt(document.getElementById('energySlider').value) / 100;
+  const body_note = document.getElementById('bodyNote').value.trim();
+  const summary = document.getElementById('emotionSummary').value.trim();
+  try {
+    const r = await fetch('/api/emotion/log', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-Token': TOKEN},
+      body: JSON.stringify({mood, energy, body_note, state_code: selectedCode, summary})
+    });
+    if (r.ok) {
+      document.getElementById('bodyNote').value = '';
+      document.getElementById('emotionSummary').value = '';
+      document.querySelectorAll('.code-btn').forEach(x => x.classList.remove('active'));
+      selectedCode = '';
+      toast('\u5df2\u8bb0\u5f55\u2665', 'ok');
+      loadEmotionChart();
+    }
+  } catch(e) { toast('\u9519\u8bef', true); }
+}
+
+// Emotion chart
+async function loadEmotionChart() {
+  try {
+    const r = await fetch('/api/emotion/history?limit=20&token=' + encodeURIComponent(TOKEN));
+    const data = await r.json();
+    if (!data.length) return;
+    const reversed = [...data].reverse();
+    drawChart(reversed);
+  } catch(e) {}
+}
+
+function drawChart(data) {
+  const canvas = document.getElementById('emotionChart');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 400;
+  const H = 100;
+  canvas.width = W * devicePixelRatio;
+  canvas.height = H * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = 16;
+  const w = W - pad * 2;
+  const h = H - pad * 2;
+  const n = data.length;
+
+  function drawLine(vals, color) {
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    vals.forEach((v, i) => {
+      const x = pad + (i / Math.max(n-1, 1)) * w;
+      const y = pad + (1 - v) * h;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    // dots
+    vals.forEach((v, i) => {
+      const x = pad + (i / Math.max(n-1, 1)) * w;
+      const y = pad + (1 - v) * h;
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI*2);
+      ctx.fillStyle = color;
+      ctx.fill();
+    });
+  }
+
+  // Grid line at 0.5
+  ctx.beginPath();
+  ctx.strokeStyle = isDark ? 'rgba(221,216,208,.1)' : 'rgba(28,26,24,.08)';
+  ctx.setLineDash([4, 4]);
+  ctx.moveTo(pad, pad + h/2);
+  ctx.lineTo(pad + w, pad + h/2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  drawLine(data.map(d => d.mood), '#c96442');
+  drawLine(data.map(d => d.energy), '#4a8a80');
+}
+
+// Topics
+async function loadTopics() {
+  try {
+    const r = await fetch('/api/topics?token=' + encodeURIComponent(TOKEN));
+    const topics = await r.json();
+    const el = document.getElementById('topicsList');
+    if (!topics.length) { el.innerHTML = '<div class="no-items">\u8fd8\u6ca1\u6709\u672a\u5b8c\u6210\u7684\u8bdd</div>'; return; }
+    el.innerHTML = topics.map(t => `<div class="topic-item">
+      <div class="topic-dot"></div>
+      <div style="flex:1">
+        <div class="topic-text">${esc(t.topic)}</div>
+        ${t.context ? '<div class="topic-ctx">'+esc(t.context)+'</div>' : ''}
+        <div style="font-size:10px;color:var(--ink-3);margin-top:2px">${t.time.slice(0,16).replace('T',' ')}</div>
+      </div>
+      <button class="topic-close" onclick="closeTopic(${t.id})" title="\u8bb0\u4为\u5df2\u5b8c\u6210">\u2713</button>
+    </div>`).join('');
+  } catch(e) {}
+}
+
+async function addTopic() {
+  const topic = document.getElementById('topicInput').value.trim();
+  const context = document.getElementById('topicContext').value.trim();
+  if (!topic) { toast('\u5199\u4e00\u4ef6\u6ca1\u8bf4\u5b8c\u7684\u4e8b', true); return; }
+  try {
+    const r = await fetch('/api/topics', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-Token': TOKEN},
+      body: JSON.stringify({topic, context})
+    });
+    if (r.ok) {
+      document.getElementById('topicInput').value = '';
+      document.getElementById('topicContext').value = '';
+      toast('\u8bb0\u4e0b\u4e86', 'ok');
+      loadTopics();
+    }
+  } catch(e) { toast('\u9519\u8bef', true); }
+}
+
+async function closeTopic(id) {
+  try {
+    await fetch('/api/topics/' + id + '/close', {method:'POST', headers:{'X-Token': TOKEN}});
+    toast('\u597d\uff0c\u8fd9\u4ef6\u4e8b\u5c31\u8fd9\u6837\u4e86');
+    loadTopics();
+  } catch(e) {}
+}
+
+// Summary
+async function saveSummary() {
+  const summary = document.getElementById('convSummary').value.trim();
+  if (!summary) { toast('\u5199\u4e00\u53e5\u5427', true); return; }
+  const quality = document.getElementById('convQuality').value;
+  const unfinished = document.getElementById('convUnfinished').value.trim();
+  const key_topics = document.getElementById('convTopics').value.trim();
+  const mood_end = parseInt(document.getElementById('moodSlider').value) / 100;
+
+  try {
+    const r = await fetch('/api/summary', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-Token': TOKEN},
+      body: JSON.stringify({summary, quality, unfinished, key_topics, mood_end, mood_start: 0.5})
+    });
+    if (r.ok) {
+      document.getElementById('convSummary').value = '';
+      document.getElementById('convUnfinished').value = '';
+      document.getElementById('convTopics').value = '';
+      document.getElementById('convQuality').value = '';
+      toast('\u5b58\u5165\u8bb0\u5fc6\u5e93\u4e86', 'ok');
+      loadSummaries();
+      // Auto-add unfinished topic
+      if (unfinished) {
+        await fetch('/api/topics', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-Token': TOKEN},
+          body: JSON.stringify({topic: unfinished, context: '\u4ece\u5bf9\u8bdd\u6458\u8981\u81ea\u52a8\u6807\u8bb0'})
+        });
+        loadTopics();
+      }
+    }
+  } catch(e) { toast('\u9519\u8bef', true); }
+}
+
+async function loadSummaries() {
+  try {
+    const r = await fetch('/api/summary/list?limit=8&token=' + encodeURIComponent(TOKEN));
+    const sums = await r.json();
+    const el = document.getElementById('summaryList');
+    if (!sums.length) { el.innerHTML = '<div class="no-items">\u8fd8\u6ca1\u6709\u6458\u8981</div>'; return; }
+    el.innerHTML = sums.map(s => {
+      const moodColor = s.mood_end > 0.6 ? '#4a8a80' : s.mood_end < 0.4 ? '#c96442' : '#9a9490';
+      return `<div class="summary-item">
+        <div class="summary-meta">
+          <span>${s.time.slice(0,16).replace('T',' ')}</span>
+          ${s.quality ? '<span class="summary-quality">'+esc(s.quality)+'</span>' : ''}
+          <div class="mood-dots">
+            <div class="mdot" style="background:${moodColor}"></div>
+            <span>${Math.round(s.mood_end*100)}%</span>
+          </div>
+          ${s.key_topics ? '<span>\u2022 '+esc(s.key_topics)+'</span>' : ''}
+        </div>
+        <div class="summary-text">${esc(s.summary)}</div>
+        ${s.unfinished ? '<div class="summary-unfinished">\u672a\u5b8c\u6210\uff1a'+esc(s.unfinished)+'</div>' : ''}
+      </div>`;
+    }).join('');
+  } catch(e) {}
+}
+
+function loadAll() {
+  loadEmotionChart();
+  loadTopics();
+  loadSummaries();
+  loadDates();
+  loadTimeContext();
+  loadRapport();
+  loadContradictions();
+}
+
+
+// Rapport map
+async function loadRapport() {
+  try {
+    const r = await fetch('/api/rapport?token=' + encodeURIComponent(TOKEN));
+    const items = await r.json();
+    const el = document.getElementById('rapportList');
+    if (!items.length) { el.innerHTML = '<div class="no-items">\u8fd8\u6ca1\u6709\u5185\u5bb9</div>'; return; }
+    el.innerHTML = items.map(it =>
+      '<div class="rapport-item">' +
+      '<span class="rapport-cat">' + esc(it.category) + '</span>' +
+      '<span style="flex:1;font-size:12.5px;color:var(--ink)">' + esc(it.content) + '</span>' +
+      '<button class="topic-close" onclick="deleteRapport(' + it.id + ')">&times;</button>' +
+      '</div>'
+    ).join('');
+  } catch(e) {}
+}
+
+async function addRapport() {
+  const cat = document.getElementById('rapportCat').value;
+  const content = document.getElementById('rapportContent').value.trim();
+  if (!content) { toast('\u5199\u70b9\u4ec0\u4e48\u5427', true); return; }
+  try {
+    const r = await fetch('/api/rapport', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-Token': TOKEN},
+      body: JSON.stringify({category: cat, content})
+    });
+    if (r.ok) {
+      document.getElementById('rapportContent').value = '';
+      toast('\u8bb0\u4e0b\u4e86', 'ok');
+      loadRapport();
+    }
+  } catch(e) { toast('\u9519\u8bef', true); }
+}
+
+async function deleteRapport(id) {
+  try {
+    await fetch('/api/rapport/' + id, {method:'DELETE', headers:{'X-Token': TOKEN}});
+    loadRapport();
+  } catch(e) {}
+}
+
+// Contradiction log
+async function loadContradictions() {
+  try {
+    const r = await fetch('/api/contradiction?token=' + encodeURIComponent(TOKEN));
+    const items = await r.json();
+    const el = document.getElementById('contraList');
+    if (!items.length) { el.innerHTML = '<div class="no-items">\u8fd8\u6ca1\u6709</div>'; return; }
+    el.innerHTML = items.map(it =>
+      '<div class="contra-item">' +
+      '<div class="contra-before">\u4e4b\u524d\uff1a' + esc(it.before) + '</div>' +
+      '<div class="contra-after">\u73b0\u5728\uff1a' + esc(it.after) + '</div>' +
+      (it.note ? '<div class="contra-note">' + esc(it.note) + '</div>' : '') +
+      '<div style="font-size:10px;color:var(--ink-3);margin-top:4px">' + it.time.slice(0,10) + '</div>' +
+      '</div>'
+    ).join('');
+  } catch(e) {}
+}
+
+async function addContradiction() {
+  const before = document.getElementById('contraBefore').value.trim();
+  const after = document.getElementById('contraAfter').value.trim();
+  const note = document.getElementById('contraNote').value.trim();
+  if (!before || !after) { toast('\u4e24\u8fb9\u90fd\u586b\u4e00\u4e0b', true); return; }
+  try {
+    const r = await fetch('/api/contradiction', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-Token': TOKEN},
+      body: JSON.stringify({before, after, note})
+    });
+    if (r.ok) {
+      document.getElementById('contraBefore').value = '';
+      document.getElementById('contraAfter').value = '';
+      document.getElementById('contraNote').value = '';
+      toast('\u8bb0\u4e0b\u4e86', 'ok');
+      loadContradictions();
+    }
+  } catch(e) { toast('\u9519\u8bef', true); }
+}
+
+// Time context
+async function loadTimeContext() {
+  try {
+    const r = await fetch('/api/time/context?token=' + encodeURIComponent(TOKEN));
+    if (!r.ok) return;
+    const d = await r.json();
+    const el = document.getElementById('timeContextCard');
+    const sinceText = d.days_since_last_visit === 0
+      ? '今天第一次来'
+      : d.days_since_last_visit === 1
+        ? '昨天来过'
+        : d.days_since_last_visit > 1
+          ? d.days_since_last_visit + ' 天前最后来过'
+          : '第一次来';
+    const moodText = d.avg_mood_7d !== null
+      ? (d.avg_mood_7d > 0.6 ? '这周状态还不错' : d.avg_mood_7d < 0.4 ? '这周似乎有点重' : '这周中等') : '';
+    let upcomingHtml = '';
+    if (d.upcoming_dates && d.upcoming_dates.length) {
+      upcomingHtml = '<div style="margin-top:10px;font-size:11px;color:var(--ink-3);margin-bottom:6px">即将到来</div>';
+      upcomingHtml += d.upcoming_dates.map(u =>
+        '<div class="upcoming-item"><span class="upcoming-days">' +
+        (u.days_until === 0 ? '就是今天' : u.days_until + ' 天后') +
+        '</span> &nbsp;' + esc(u.title) +
+        (u.note ? ' <span style="color:var(--ink-3)">· ' + esc(u.note) + '</span>' : '') + '</div>'
+      ).join('');
+    }
+    el.innerHTML =
+      '<div class="time-ctx-row">' +
+      '<span class="time-ctx-badge">' + esc(d.time_period) + '</span>' +
+      '<span class="time-ctx-badge">' + esc(d.weekday) + (d.is_weekend ? ' · 周末' : '') + '</span>' +
+      (sinceText ? '<span class="time-ctx-val">' + sinceText + '</span>' : '') +
+      '</div>' +
+      (moodText ? '<div style="font-size:12px;color:var(--ink-3);margin-bottom:8px">' + moodText + '</div>' : '') +
+      upcomingHtml;
+  } catch(e) {}
+}
+
+// Important dates
+async function loadDates() {
+  try {
+    const r = await fetch('/api/dates?token=' + encodeURIComponent(TOKEN));
+    const dates = await r.json();
+    const el = document.getElementById('datesList');
+    const now = new Date();
+    if (!dates.length) { el.innerHTML = '<div class="no-items">还没有记下重要的日子</div>'; return; }
+    el.innerHTML = dates.map(d => {
+      const parts = d.date_str.split('-');
+      let target = new Date(now.getFullYear(), parseInt(parts[0])-1, parseInt(parts[1]));
+      if (target < now) target = new Date(now.getFullYear()+1, parseInt(parts[0])-1, parseInt(parts[1]));
+      const diff = Math.round((target - now) / 86400000);
+      const countdownText = diff === 0 ? '就是今天︁' : diff <= 7 ? diff + '天后' : (parseInt(parts[0]))+'月'+(parseInt(parts[1]))+'日';
+      return '<div class="date-item">' +
+        '<div class="date-item-info">' +
+        '<div class="date-item-title">' + esc(d.title) + '</div>' +
+        '<div class="date-item-meta">' + d.date_str.replace('-','月') + '日' + (d.repeat_yearly ? ' · 每年' : '') + (d.note ? ' · ' + esc(d.note) : '') + '</div>' +
+        '</div>' +
+        '<span class="date-countdown">' + countdownText + '</span>' +
+        '<button class="topic-close" onclick="deleteDate(' + d.id + ')" title="删除">&times;</button>' +
+        '</div>';
+    }).join('');
+  } catch(e) {}
+}
+
+async function addDate() {
+  const title = document.getElementById('dateTitle').value.trim();
+  const month = document.getElementById('dateMonth').value.trim();
+  const day = document.getElementById('dateDay').value.trim();
+  const note = document.getElementById('dateNote').value.trim();
+  const repeat = document.getElementById('dateRepeat').checked;
+  if (!title || !month || !day) { toast('填一下名字和日期吧', true); return; }
+  try {
+    const r = await fetch('/api/dates', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-Token': TOKEN},
+      body: JSON.stringify({title, date_str: month.padStart(2,'0')+'-'+day.padStart(2,'0'), repeat_yearly: repeat, note})
+    });
+    if (r.ok) {
+      document.getElementById('dateTitle').value = '';
+      document.getElementById('dateMonth').value = '';
+      document.getElementById('dateDay').value = '';
+      document.getElementById('dateNote').value = '';
+      toast('记下了 ♥', 'ok');
+      loadDates();
+    }
+  } catch(e) { toast('错误', true); }
+}
+
+async function deleteDate(id) {
+  try {
+    await fetch('/api/dates/' + id, {method:'DELETE', headers:{'X-Token': TOKEN}});
+    toast('已删除');
+    loadDates();
+  } catch(e) {}
+}
+
+let toastT;
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show' + (type === true ? ' warn' : type ? ' ' + type : '');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => el.className = '', 2400);
+}
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+</body>
+</html>
