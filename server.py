@@ -40,107 +40,111 @@ def get_conn():
 
 
 def init_db():
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS memories ("
-                "id SERIAL PRIMARY KEY,"
-                "content TEXT NOT NULL,"
-                "area TEXT DEFAULT '\u6cd5\u5178',"
-                "tags TEXT DEFAULT '',"
-                "weight FLOAT DEFAULT 1.0,"
-                "decay FLOAT DEFAULT 0.0,"
-                "recall INT DEFAULT 0,"
-                "time TIMESTAMP DEFAULT NOW(),"
-                "last_recall TIMESTAMP DEFAULT NOW()"
-                ")"
-            )
-            for col, defn in [
-                ("weight", "FLOAT DEFAULT 1.0"),
-                ("decay", "FLOAT DEFAULT 0.0"),
-                ("recall", "INT DEFAULT 0"),
-                ("last_recall", "TIMESTAMP DEFAULT NOW()"),
-            ]:
-                try:
+    tables = [
+        (
+            "CREATE TABLE IF NOT EXISTS memories ("
+            "id SERIAL PRIMARY KEY,"
+            "content TEXT NOT NULL,"
+            "area TEXT DEFAULT '\u6cd5\u5178',"
+            "tags TEXT DEFAULT '',"
+            "weight FLOAT DEFAULT 1.0,"
+            "decay FLOAT DEFAULT 0.0,"
+            "recall INT DEFAULT 0,"
+            "time TIMESTAMP DEFAULT NOW(),"
+            "last_recall TIMESTAMP DEFAULT NOW()"
+            ")"
+        ),
+        (
+            "CREATE TABLE IF NOT EXISTS emotion_log ("
+            "id SERIAL PRIMARY KEY,"
+            "mood_score FLOAT DEFAULT 0.5,"
+            "energy_score FLOAT DEFAULT 0.5,"
+            "body_note TEXT DEFAULT '',"
+            "state_code TEXT DEFAULT '',"
+            "summary TEXT DEFAULT '',"
+            "time TIMESTAMP DEFAULT NOW()"
+            ")"
+        ),
+        (
+            "CREATE TABLE IF NOT EXISTS open_topics ("
+            "id SERIAL PRIMARY KEY,"
+            "topic TEXT NOT NULL,"
+            "context TEXT DEFAULT '',"
+            "status TEXT DEFAULT 'open',"
+            "time TIMESTAMP DEFAULT NOW()"
+            ")"
+        ),
+        (
+            "CREATE TABLE IF NOT EXISTS important_dates ("
+            "id SERIAL PRIMARY KEY,"
+            "title TEXT NOT NULL,"
+            "date_str TEXT NOT NULL,"
+            "repeat_yearly BOOLEAN DEFAULT TRUE,"
+            "note TEXT DEFAULT '',"
+            "created TIMESTAMP DEFAULT NOW()"
+            ")"
+        ),
+        (
+            "CREATE TABLE IF NOT EXISTS rapport_map ("
+            "id SERIAL PRIMARY KEY,"
+            "category TEXT NOT NULL,"
+            "content TEXT NOT NULL,"
+            "time TIMESTAMP DEFAULT NOW()"
+            ")"
+        ),
+        (
+            "CREATE TABLE IF NOT EXISTS contradictions ("
+            "id SERIAL PRIMARY KEY,"
+            "before_text TEXT NOT NULL,"
+            "after_text TEXT NOT NULL,"
+            "note TEXT DEFAULT '',"
+            "time TIMESTAMP DEFAULT NOW()"
+            ")"
+        ),
+        (
+            "CREATE TABLE IF NOT EXISTS visit_log ("
+            "id SERIAL PRIMARY KEY,"
+            "state_code TEXT DEFAULT '',"
+            "time TIMESTAMP DEFAULT NOW()"
+            ")"
+        ),
+        (
+            "CREATE TABLE IF NOT EXISTS conv_summaries ("
+            "id SERIAL PRIMARY KEY,"
+            "quality TEXT DEFAULT '',"
+            "mood_start FLOAT DEFAULT 0.5,"
+            "mood_end FLOAT DEFAULT 0.5,"
+            "key_topics TEXT DEFAULT '',"
+            "unfinished TEXT DEFAULT '',"
+            "body_state TEXT DEFAULT '',"
+            "summary TEXT NOT NULL,"
+            "time TIMESTAMP DEFAULT NOW()"
+            ")"
+        ),
+    ]
+    # Each table in its own transaction so one failure doesn't block others
+    for sql in tables:
+        try:
+            with get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(sql)
+                conn.commit()
+        except Exception:
+            pass
+    # Add missing columns to memories
+    for col, defn in [
+        ("weight", "FLOAT DEFAULT 1.0"),
+        ("decay", "FLOAT DEFAULT 0.0"),
+        ("recall", "INT DEFAULT 0"),
+        ("last_recall", "TIMESTAMP DEFAULT NOW()"),
+    ]:
+        try:
+            with get_conn() as conn:
+                with conn.cursor() as cur:
                     cur.execute("ALTER TABLE memories ADD COLUMN " + col + " " + defn)
-                except Exception:
-                    pass
-
-            # Emotion curve table
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS emotion_log ("
-                "id SERIAL PRIMARY KEY,"
-                "mood_score FLOAT DEFAULT 0.5,"
-                "energy_score FLOAT DEFAULT 0.5,"
-                "body_note TEXT DEFAULT '',"
-                "state_code TEXT DEFAULT '',"
-                "summary TEXT DEFAULT '',"
-                "time TIMESTAMP DEFAULT NOW()"
-                ")"
-            )
-            # Unfinished topics table
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS open_topics ("
-                "id SERIAL PRIMARY KEY,"
-                "topic TEXT NOT NULL,"
-                "context TEXT DEFAULT '',"
-                "status TEXT DEFAULT 'open',"
-                "time TIMESTAMP DEFAULT NOW()"
-                ")"
-            )
-            # Important dates table
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS important_dates ("
-                "id SERIAL PRIMARY KEY,"
-                "title TEXT NOT NULL,"
-                "date_str TEXT NOT NULL,"
-                "repeat_yearly BOOLEAN DEFAULT TRUE,"
-                "note TEXT DEFAULT '',"
-                "created TIMESTAMP DEFAULT NOW()"
-                ")"
-            )
-            # Rapport map table
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS rapport_map ("
-                "id SERIAL PRIMARY KEY,"
-                "category TEXT NOT NULL,"
-                "content TEXT NOT NULL,"
-                "time TIMESTAMP DEFAULT NOW()"
-                ")"
-            )
-            # Contradiction log table
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS contradictions ("
-                "id SERIAL PRIMARY KEY,"
-                "before_text TEXT NOT NULL,"
-                "after_text TEXT NOT NULL,"
-                "note TEXT DEFAULT '',"
-                "time TIMESTAMP DEFAULT NOW()"
-                ")"
-            )
-            # Visit log table
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS visit_log ("
-                "id SERIAL PRIMARY KEY,"
-                "state_code TEXT DEFAULT '',"
-                "time TIMESTAMP DEFAULT NOW()"
-                ")"
-            )
-            # Conversation summaries table
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS conv_summaries ("
-                "id SERIAL PRIMARY KEY,"
-                "quality TEXT DEFAULT '',"
-                "mood_start FLOAT DEFAULT 0.5,"
-                "mood_end FLOAT DEFAULT 0.5,"
-                "key_topics TEXT DEFAULT '',"
-                "unfinished TEXT DEFAULT '',"
-                "body_state TEXT DEFAULT '',"
-                "summary TEXT NOT NULL,"
-                "time TIMESTAMP DEFAULT NOW()"
-                ")"
-            )
-        conn.commit()
+                conn.commit()
+        except Exception:
+            pass
 
 
 AREA_RULES = {
