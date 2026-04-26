@@ -15,7 +15,7 @@ html,body{min-height:100%;font-family:'Noto Sans SC',sans-serif;background:var(-
 #lockScreen h2{font-family:'Noto Serif SC',serif;font-size:20px}
 #lockInput{padding:11px 18px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--paper-2);color:var(--ink);font-family:inherit;font-size:15px;outline:none;width:230px;text-align:center}
 #lockInput:focus{border-color:var(--warm)}
-#lockBtn{padding:13px 40px;background:var(--warm);border:none;border-radius:var(--r-sm);color:#fff;font-family:inherit;font-size:15px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;min-width:140px;min-height:52px;display:block}
+#lockBtn{padding:13px 40px;background:var(--warm);border:none;border-radius:var(--r-sm);color:#fff;font-family:inherit;font-size:16px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;min-width:140px;min-height:52px;display:block;-webkit-appearance:none}
 #lockErr{font-size:12px;color:var(--warm);min-height:18px}
 
 header{padding:12px 20px;display:flex;align-items:center;justify-content:space-between;background:var(--paper-2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
@@ -281,6 +281,8 @@ function doUnlock() {
     }).catch(() => { document.getElementById('lockErr').textContent = '\u8fde\u63a5\u5931\u8d25'; });
 }
 document.getElementById('lockInput').addEventListener('keydown', e => { if(e.key==='Enter') doUnlock(); });
+document.getElementById('lockBtn').addEventListener('click', function(e) { e.preventDefault(); doUnlock(); });
+document.getElementById('lockBtn').addEventListener('touchend', function(e) { e.preventDefault(); e.stopPropagation(); doUnlock(); });
 document.getElementById('lockBtn').addEventListener('click', e => { e.preventDefault(); doUnlock(); });
 document.getElementById('lockBtn').addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); doUnlock(); });
 
@@ -412,7 +414,7 @@ async function loadTopics() {
         ${t.context ? '<div class="topic-ctx">'+esc(t.context)+'</div>' : ''}
         <div style="font-size:10px;color:var(--ink-3);margin-top:2px">${t.time.slice(0,16).replace('T',' ')}</div>
       </div>
-      <button class="topic-close" onclick="closeTopic(${t.id})" title="\u8bb0\u4为\u5df2\u5b8c\u6210">\u2713</button>
+      <button class="topic-close" onclick="closeTopic(${t.id})" title="完成">✓</button>
     </div>`).join('');
   } catch(e) {}
 }
